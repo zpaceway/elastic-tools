@@ -46534,5 +46534,3 @@ xx-fbcdn-shv-02-sin2.fbcdn.net`;
 const trackers = new Set(trackersStr.split("\n"))
 
 export default trackers
-
-
