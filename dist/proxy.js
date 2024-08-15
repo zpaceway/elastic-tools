@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createProxy = void 0;
 const http_1 = __importDefault(require("http"));
 const net_1 = __importDefault(require("net"));
+const trackers_1 = __importDefault(require("./trackers"));
 const createProxy = ({ internalProviderProxyPort, providersProxyHost, providersProxyPort, minimumAvailability, }) => {
     const INTERNAL_PROVIDER_PROXY_PORT = internalProviderProxyPort;
     const PROVIDERS_PROXY_HOST = providersProxyHost;
@@ -20,6 +21,10 @@ const createProxy = ({ internalProviderProxyPort, providersProxyHost, providersP
     const onRequest = (clientReq, clientRes) => {
         logger.request(clientReq.method, clientReq.url);
         const parsedUrl = new URL(clientReq.url || "");
+        if (trackers_1.default.has(parsedUrl.hostname)) {
+            clientRes.writeHead(500, { "Content-Type": "text/plain" });
+            return clientRes.end(`Error: Rejected}`);
+        }
         const options = {
             hostname: parsedUrl.hostname || "",
             port: parseInt(parsedUrl.port || "80"),

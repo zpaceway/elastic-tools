@@ -1,5 +1,6 @@
 import http, { IncomingMessage, ServerResponse } from "http";
 import net, { Socket } from "net";
+import trackers from "./trackers";
 
 export const createProxy = ({
   internalProviderProxyPort,
@@ -26,8 +27,13 @@ export const createProxy = ({
 
   const onRequest = (clientReq: IncomingMessage, clientRes: ServerResponse) => {
     logger.request(clientReq.method, clientReq.url);
-
     const parsedUrl = new URL(clientReq.url || "");
+
+    if (trackers.has(parsedUrl.hostname)) {
+      clientRes.writeHead(500, { "Content-Type": "text/plain" });
+      return clientRes.end(`Error: Rejected}`);
+    }
+
     const options = {
       hostname: parsedUrl.hostname || "",
       port: parseInt(parsedUrl.port || "80"),
