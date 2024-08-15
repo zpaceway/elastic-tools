@@ -1,0 +1,18 @@
+{
+  "name": "elastic-tools",
+  "version": "1.0.0",
+  "main": "build/index.js",
+  "scripts": {
+    "dev:tunnel": "ts-node-dev src/tunnel.ts",
+    "dev:proxy": "ts-node-dev src/proxy.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.3.0",
+    "typescript": "^5.5.4"
+  }
+}
