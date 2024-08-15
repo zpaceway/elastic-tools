@@ -2,6 +2,15 @@ import http, { IncomingMessage, ServerResponse } from "http";
 import net, { Socket } from "net";
 import trackers from "./trackers";
 
+const validateUsernameAndPassword = async (
+  username?: string,
+  password?: string
+) => {
+  if (!username || !password) return false;
+  if (username === "zpaceway" && password === "123456") return true;
+  return false;
+};
+
 export const createProxy = ({
   internalProviderProxyPort,
   providersProxyHost,
@@ -25,13 +34,57 @@ export const createProxy = ({
     },
   };
 
-  const onRequest = (clientReq: IncomingMessage, clientRes: ServerResponse) => {
+  const parseAuthorization = (authHeader: string | undefined) => {
+    if (!authHeader || !authHeader.startsWith("Basic ")) {
+      return null;
+    }
+    const base64Credentials = authHeader.split(" ")[1];
+    const credentials = Buffer.from(base64Credentials!, "base64").toString(
+      "utf-8"
+    );
+    const [username, password] = credentials.split(":");
+    return { username, password };
+  };
+
+  const checkAuthorization = async (authHeader: string | undefined) => {
+    const credentials = parseAuthorization(authHeader);
+    if (!credentials) {
+      return false;
+    }
+    const { username, password } = credentials;
+
+    return validateUsernameAndPassword(username, password);
+  };
+
+  const unauthorizedResponse = (clientRes: ServerResponse) => {
+    clientRes.writeHead(401, {
+      "Content-Type": "text/plain",
+      "WWW-Authenticate": 'Basic realm="Access to the proxy"',
+    });
+    clientRes.end("Unauthorized");
+  };
+
+  const onRequest = async (
+    clientReq: IncomingMessage,
+    clientRes: ServerResponse
+  ) => {
     logger.request(clientReq.method, clientReq.url);
+    clientReq.pause();
+
+    const authorized = await checkAuthorization(
+      clientReq.headers.authorization
+    ).catch(() => false);
+    if (!authorized) {
+      return unauthorizedResponse(clientRes);
+    }
+
+    clientReq.resume();
+
     const parsedUrl = new URL(clientReq.url || "");
 
     if (trackers.has(parsedUrl.hostname)) {
       clientRes.writeHead(500, { "Content-Type": "text/plain" });
-      return clientRes.end(`Error: Rejected}`);
+      return clientRes.end("Error: Rejected");
     }
 
     const options = {
@@ -61,6 +114,17 @@ export const createProxy = ({
     head: Buffer
   ) => {
     logger.request(req.method, req.url);
+
+    if (!checkAuthorization(req.headers.authorization)) {
+      clientSocket.write(
+        "HTTP/1.1 401 Unauthorized\r\n" +
+          'WWW-Authenticate: Basic realm="Access to the proxy"\r\n' +
+          "Content-Type: text/plain\r\n" +
+          "\r\n" +
+          "Unauthorized"
+      );
+      return clientSocket.end();
+    }
 
     const parsedUrl = new URL(`https://${req.url}`);
     const serverSocket = net.connect(
