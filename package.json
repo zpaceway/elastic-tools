@@ -1,7 +1,7 @@
 {
   "name": "elastic-tools",
   "version": "1.0.1",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "dev:tunnel": "ts-node-dev src/tunnel.ts",
     "dev:proxy": "ts-node-dev src/proxy.ts",
