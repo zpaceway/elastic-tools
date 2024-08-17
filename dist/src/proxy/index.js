@@ -7,7 +7,7 @@ const createProxy = ({ providersProxyHost, providersProxyPort, minimumAvailabili
     const server = (0, server_1.createServer)();
     return {
         listen: ({ internalProviderProxyPort, }) => {
-            server.listen(internalProviderProxyPort);
+            server.listen(internalProviderProxyPort, "127.0.0.1");
             (0, jumper_1.createJumpers)({
                 internalProviderProxyPort,
                 providersProxyHost,

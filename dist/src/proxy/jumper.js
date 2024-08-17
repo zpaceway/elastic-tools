@@ -6,8 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createJumpers = void 0;
 const net_1 = __importDefault(require("net"));
 const createJumpers = ({ internalProviderProxyPort, providersProxyHost, providersProxyPort, minimumAvailability, }) => {
-    const availableProviders = [];
+    const availableJumpers = [];
     const createJumper = () => {
+        const jumper = Symbol();
         const incommingProxySocket = net_1.default.connect({
             allowHalfOpen: true,
             keepAlive: true,
@@ -17,28 +18,29 @@ const createJumpers = ({ internalProviderProxyPort, providersProxyHost, provider
         const providerProxySocket = net_1.default.connect({
             allowHalfOpen: true,
             keepAlive: true,
-            host: "localhost",
+            host: "127.0.0.1",
             port: internalProviderProxyPort,
         });
-        availableProviders.push(providerProxySocket);
-        if (availableProviders.length < minimumAvailability) {
+        availableJumpers.push(jumper);
+        if (availableJumpers.length < minimumAvailability) {
             createJumper();
         }
         const onUnavailable = () => {
-            const indexOf = availableProviders.findIndex((provider) => provider === providerProxySocket);
+            const indexOf = availableJumpers.findIndex((_jumper) => _jumper === jumper);
             if (indexOf < 0)
                 return;
-            availableProviders.splice(indexOf, 1);
-            if (availableProviders.length < 10) {
+            availableJumpers.splice(indexOf, 1);
+            if (availableJumpers.length < 10) {
                 createJumper();
             }
         };
-        incommingProxySocket.on("data", onUnavailable);
-        providerProxySocket.on("data", onUnavailable);
-        incommingProxySocket.on("end", onUnavailable);
-        providerProxySocket.on("end", onUnavailable);
+        ["data", "end", "close", "timeout"].map((event) => {
+            incommingProxySocket.on(event, onUnavailable);
+            providerProxySocket.on(event, onUnavailable);
+        });
         incommingProxySocket.pipe(providerProxySocket, { end: true });
         providerProxySocket.pipe(incommingProxySocket, { end: true });
     };
+    createJumper();
 };
 exports.createJumpers = createJumpers;

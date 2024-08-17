@@ -5,14 +5,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createTunnel = void 0;
 const net_1 = __importDefault(require("net"));
+const logger_1 = __importDefault(require("./logger"));
 const createTunnel = () => {
     const availableProviders = [];
     const onProviderConnection = (providerSocket) => {
-        console.log("New provider added");
+        logger_1.default.log("New provider connected from", providerSocket.remoteAddress);
         availableProviders.push(providerSocket);
-        console.log(`Available providers ${availableProviders.length}`);
+        logger_1.default.info(`Available providers ${availableProviders.length}`);
     };
     const onClientConnection = (clientSocket) => {
+        logger_1.default.log("New client connected from", clientSocket.remoteAddress);
         const providerSocket = availableProviders.pop();
         if (!providerSocket) {
             clientSocket.write("HTTP/1.1 500 Internal Server Error\r\n" +
@@ -20,7 +22,7 @@ const createTunnel = () => {
                 "\r\n");
             return clientSocket.end(`Error: unavailable`);
         }
-        console.log(`Available providers ${availableProviders.length}`);
+        logger_1.default.log(`Available providers ${availableProviders.length}`);
         clientSocket.pipe(providerSocket, { end: true });
         providerSocket.pipe(clientSocket, { end: true });
         providerSocket.on("error", (err) => {

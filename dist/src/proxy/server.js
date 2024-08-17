@@ -7,21 +7,19 @@ exports.createServer = void 0;
 const net_1 = __importDefault(require("net"));
 const http_1 = __importDefault(require("http"));
 const url_1 = require("url");
+const logger_1 = __importDefault(require("../logger"));
 const SOCKS_VERSION_4 = 0x04;
 const SOCKS_VERSION_5 = 0x05;
-const log = (message) => {
-    console.log(new Date(), message);
-};
 const handleSocks4Connection = (socket) => {
     socket.once("data", (data) => {
         if (data[0] !== SOCKS_VERSION_4) {
-            log("---SOCKS4--- connection: Invalid version, closing socket.");
+            logger_1.default.error("---SOCKS4--- Connection: Invalid version, closing socket.");
             socket.end();
             return;
         }
         const port = data.readUInt16BE(2);
         const ip = `${data[4]}.${data[5]}.${data[6]}.${data[7]}`;
-        log(`---SOCKS4--- ⌛ ${ip}:${port}`);
+        logger_1.default.info(`---SOCKS4--- ${ip}:${port}`);
         const destinationSocket = net_1.default.createConnection({ host: ip, port }, () => {
             const response = Buffer.alloc(8);
             response.writeUInt8(0x00, 0);
@@ -29,10 +27,10 @@ const handleSocks4Connection = (socket) => {
             socket.write(response);
             destinationSocket.pipe(socket);
             socket.pipe(destinationSocket);
-            log(`---SOCKS4--- ✅ ${ip}:${port}`);
+            logger_1.default.success(`---SOCKS4--- ${ip}:${port}`);
         });
         destinationSocket.on("error", (err) => {
-            log(`---SOCKS4--- ⛔ ${ip}:${port} - ${err.message}`);
+            logger_1.default.error(`---SOCKS4--- ${ip}:${port} - ${err.message}`);
             socket.end();
         });
     });
@@ -40,11 +38,11 @@ const handleSocks4Connection = (socket) => {
 const handleSocks5Connection = (socket) => {
     socket.once("data", (data) => {
         if (data[0] !== SOCKS_VERSION_5) {
-            log("---SOCKS5--- connection: Invalid version, closing socket.");
+            logger_1.default.error("---SOCKS5--- Connection: Invalid version, closing socket.");
             socket.end();
             return;
         }
-        log("---SOCKS5--- connection: Client authentication request received.");
+        logger_1.default.log("📄 ---SOCKS5--- connection: Client authentication request received.");
         socket.write(Buffer.from([0x05, 0x00])); // No authentication required
         socket.once("data", (data) => {
             const cmd = data[1];
@@ -61,13 +59,13 @@ const handleSocks5Connection = (socket) => {
                 port = data.readUInt16BE(5 + hostLength);
             }
             else {
-                log("---SOCKS5--- connection: Unsupported address type, closing socket.");
+                logger_1.default.error("---SOCKS5--- connection: Unsupported address type, closing socket.");
                 socket.end();
                 return;
             }
-            log(`---SOCKS5--- ⌛ ${host}:${port}`);
+            logger_1.default.info(`---SOCKS5--- ${host}:${port}`);
             if (cmd !== 0x01) {
-                log("---SOCKS5--- connection: Unsupported command, closing socket.");
+                logger_1.default.error("---SOCKS5--- Connection: Unsupported command, closing socket.");
                 socket.end();
                 return;
             }
@@ -86,10 +84,10 @@ const handleSocks5Connection = (socket) => {
                 socket.write(response);
                 destinationSocket.pipe(socket);
                 socket.pipe(destinationSocket);
-                log(`---SOCKS5--- ✅ ${host}:${port}`);
+                logger_1.default.success(`---SOCKS5--- ${host}:${port}`);
             });
             destinationSocket.on("error", (err) => {
-                log(`---SOCKS5--- ⛔ ${host}:${port} - ${err.message}`);
+                logger_1.default.error(`---SOCKS5--- ${host}:${port} - ${err.message}`);
                 socket.end();
             });
         });
@@ -99,26 +97,26 @@ const handleHttpConnection = (socket, data) => {
     const requestData = data.toString();
     const [requestLine, ...headers] = requestData.split("\r\n");
     if (!requestLine) {
-        log(`---HTTP--- ⛔ Invalid HTTP Request`);
+        logger_1.default.error(`---HTTP--- Invalid HTTP Request`);
         return socket.end();
     }
     const [method, fullUrl] = requestLine.split(" ");
     if (!fullUrl) {
-        log(`---HTTP--- ⛔ Invalid HTTP Request`);
+        logger_1.default.error(`---HTTP--- Invalid HTTP Request`);
         return socket.end();
     }
     if (method === "CONNECT") {
         // Handle HTTPS proxying
         const [hostname, port] = fullUrl.split(":");
-        log(`---HTTP--- ⌛ ${method} ${fullUrl}`);
+        logger_1.default.info(`---HTTP--- ${method} ${fullUrl}`);
         const targetSocket = net_1.default.createConnection({ host: hostname, port: parseInt(port || "443") }, () => {
             socket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
             targetSocket.pipe(socket);
             socket.pipe(targetSocket);
-            log(`---HTTP--- ✅ ${method} ${fullUrl}`);
+            logger_1.default.success(`---HTTP--- ${method} ${fullUrl}`);
         });
         targetSocket.on("error", (err) => {
-            log(`---HTTP--- ⛔ ${method} ${fullUrl} - ${err.message}`);
+            logger_1.default.error(`---HTTP--- ${method} ${fullUrl} - ${err.message}`);
             socket.end();
         });
     }
@@ -138,7 +136,7 @@ const handleHttpConnection = (socket, data) => {
                 return acc;
             }, {}),
         };
-        log(`---HTTP--- ⌛ ${method} ${fullUrl}`);
+        logger_1.default.info(`---HTTP--- ${method} ${fullUrl}`);
         const proxyReq = http_1.default.request(options, (proxyRes) => {
             socket.write(`HTTP/${proxyRes.httpVersion} ${proxyRes.statusCode} ${proxyRes.statusMessage}\r\n`);
             proxyRes.rawHeaders.forEach((header, index) => {
@@ -148,10 +146,10 @@ const handleHttpConnection = (socket, data) => {
             });
             socket.write("\r\n");
             proxyRes.pipe(socket);
-            log(`---HTTP--- ✅ ${method} ${fullUrl}`);
+            logger_1.default.success(`---HTTP--- ${method} ${fullUrl}`);
         });
         proxyReq.on("error", (err) => {
-            log(`---HTTP--- ⛔ ${method} ${fullUrl} - ${err.message}`);
+            logger_1.default.error(`---HTTP--- ${method} ${fullUrl} - ${err.message}`);
             socket.end();
         });
         proxyReq.end();
@@ -176,7 +174,7 @@ const createServer = () => {
             }
         });
         socket.on("error", (err) => {
-            log(`Socket error: ${err.message}`);
+            logger_1.default.log(`Socket error: ${err.message}`);
         });
     });
     return server;

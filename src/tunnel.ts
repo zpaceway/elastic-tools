@@ -1,15 +1,17 @@
 import net from "net";
+import logger from "./logger";
 
 export const createTunnel = () => {
   const availableProviders: net.Socket[] = [];
 
   const onProviderConnection = (providerSocket: net.Socket) => {
-    console.log("New provider added");
+    logger.log("New provider connected from", providerSocket.remoteAddress);
     availableProviders.push(providerSocket);
-    console.log(`Available providers ${availableProviders.length}`);
+    logger.info(`Available providers ${availableProviders.length}`);
   };
 
   const onClientConnection = (clientSocket: net.Socket) => {
+    logger.log("New client connected from", clientSocket.remoteAddress);
     const providerSocket = availableProviders.pop();
 
     if (!providerSocket) {
@@ -21,7 +23,7 @@ export const createTunnel = () => {
       return clientSocket.end(`Error: unavailable`);
     }
 
-    console.log(`Available providers ${availableProviders.length}`);
+    logger.log(`Available providers ${availableProviders.length}`);
 
     clientSocket.pipe(providerSocket, { end: true });
     providerSocket.pipe(clientSocket, { end: true });

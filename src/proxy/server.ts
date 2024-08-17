@@ -1,25 +1,22 @@
 import net from "net";
 import http from "http";
 import { URL } from "url";
+import logger from "../logger";
 
 const SOCKS_VERSION_4 = 0x04;
 const SOCKS_VERSION_5 = 0x05;
 
-const log = (message: string) => {
-  console.log(new Date(), message);
-};
-
 const handleSocks4Connection = (socket: net.Socket) => {
   socket.once("data", (data) => {
     if (data[0] !== SOCKS_VERSION_4) {
-      log("---SOCKS4--- connection: Invalid version, closing socket.");
+      logger.error("---SOCKS4--- Connection: Invalid version, closing socket.");
       socket.end();
       return;
     }
 
     const port = data.readUInt16BE(2);
     const ip = `${data[4]}.${data[5]}.${data[6]}.${data[7]}`;
-    log(`---SOCKS4--- ⌛ ${ip}:${port}`);
+    logger.info(`---SOCKS4--- ${ip}:${port}`);
 
     const destinationSocket = net.createConnection({ host: ip, port }, () => {
       const response = Buffer.alloc(8);
@@ -28,11 +25,11 @@ const handleSocks4Connection = (socket: net.Socket) => {
       socket.write(response);
       destinationSocket.pipe(socket);
       socket.pipe(destinationSocket);
-      log(`---SOCKS4--- ✅ ${ip}:${port}`);
+      logger.success(`---SOCKS4--- ${ip}:${port}`);
     });
 
     destinationSocket.on("error", (err) => {
-      log(`---SOCKS4--- ⛔ ${ip}:${port} - ${err.message}`);
+      logger.error(`---SOCKS4--- ${ip}:${port} - ${err.message}`);
       socket.end();
     });
   });
@@ -41,12 +38,14 @@ const handleSocks4Connection = (socket: net.Socket) => {
 const handleSocks5Connection = (socket: net.Socket) => {
   socket.once("data", (data) => {
     if (data[0] !== SOCKS_VERSION_5) {
-      log("---SOCKS5--- connection: Invalid version, closing socket.");
+      logger.error("---SOCKS5--- Connection: Invalid version, closing socket.");
       socket.end();
       return;
     }
 
-    log("---SOCKS5--- connection: Client authentication request received.");
+    logger.log(
+      "📄 ---SOCKS5--- connection: Client authentication request received."
+    );
     socket.write(Buffer.from([0x05, 0x00])); // No authentication required
 
     socket.once("data", (data) => {
@@ -64,17 +63,19 @@ const handleSocks5Connection = (socket: net.Socket) => {
         host = data.subarray(5, 5 + hostLength).toString();
         port = data.readUInt16BE(5 + hostLength);
       } else {
-        log(
+        logger.error(
           "---SOCKS5--- connection: Unsupported address type, closing socket."
         );
         socket.end();
         return;
       }
 
-      log(`---SOCKS5--- ⌛ ${host}:${port}`);
+      logger.info(`---SOCKS5--- ${host}:${port}`);
 
       if (cmd !== 0x01) {
-        log("---SOCKS5--- connection: Unsupported command, closing socket.");
+        logger.error(
+          "---SOCKS5--- Connection: Unsupported command, closing socket."
+        );
         socket.end();
         return;
       }
@@ -97,11 +98,11 @@ const handleSocks5Connection = (socket: net.Socket) => {
         socket.write(response);
         destinationSocket.pipe(socket);
         socket.pipe(destinationSocket);
-        log(`---SOCKS5--- ✅ ${host}:${port}`);
+        logger.success(`---SOCKS5--- ${host}:${port}`);
       });
 
       destinationSocket.on("error", (err) => {
-        log(`---SOCKS5--- ⛔ ${host}:${port} - ${err.message}`);
+        logger.error(`---SOCKS5--- ${host}:${port} - ${err.message}`);
         socket.end();
       });
     });
@@ -113,21 +114,21 @@ const handleHttpConnection = (socket: net.Socket, data: Buffer) => {
   const [requestLine, ...headers] = requestData.split("\r\n");
 
   if (!requestLine) {
-    log(`---HTTP--- ⛔ Invalid HTTP Request`);
+    logger.error(`---HTTP--- Invalid HTTP Request`);
     return socket.end();
   }
 
   const [method, fullUrl] = requestLine.split(" ");
 
   if (!fullUrl) {
-    log(`---HTTP--- ⛔ Invalid HTTP Request`);
+    logger.error(`---HTTP--- Invalid HTTP Request`);
     return socket.end();
   }
 
   if (method === "CONNECT") {
     // Handle HTTPS proxying
     const [hostname, port] = fullUrl.split(":");
-    log(`---HTTP--- ⌛ ${method} ${fullUrl}`);
+    logger.info(`---HTTP--- ${method} ${fullUrl}`);
 
     const targetSocket = net.createConnection(
       { host: hostname, port: parseInt(port || "443") },
@@ -135,12 +136,12 @@ const handleHttpConnection = (socket: net.Socket, data: Buffer) => {
         socket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
         targetSocket.pipe(socket);
         socket.pipe(targetSocket);
-        log(`---HTTP--- ✅ ${method} ${fullUrl}`);
+        logger.success(`---HTTP--- ${method} ${fullUrl}`);
       }
     );
 
     targetSocket.on("error", (err) => {
-      log(`---HTTP--- ⛔ ${method} ${fullUrl} - ${err.message}`);
+      logger.error(`---HTTP--- ${method} ${fullUrl} - ${err.message}`);
       socket.end();
     });
   } else {
@@ -160,7 +161,7 @@ const handleHttpConnection = (socket: net.Socket, data: Buffer) => {
       }, {} as Record<string, string>),
     };
 
-    log(`---HTTP--- ⌛ ${method} ${fullUrl}`);
+    logger.info(`---HTTP--- ${method} ${fullUrl}`);
 
     const proxyReq = http.request(options, (proxyRes) => {
       socket.write(
@@ -173,11 +174,11 @@ const handleHttpConnection = (socket: net.Socket, data: Buffer) => {
       });
       socket.write("\r\n");
       proxyRes.pipe(socket);
-      log(`---HTTP--- ✅ ${method} ${fullUrl}`);
+      logger.success(`---HTTP--- ${method} ${fullUrl}`);
     });
 
     proxyReq.on("error", (err) => {
-      log(`---HTTP--- ⛔ ${method} ${fullUrl} - ${err.message}`);
+      logger.error(`---HTTP--- ${method} ${fullUrl} - ${err.message}`);
       socket.end();
     });
 
@@ -202,7 +203,7 @@ export const createServer = () => {
     });
 
     socket.on("error", (err) => {
-      log(`Socket error: ${err.message}`);
+      logger.log(`Socket error: ${err.message}`);
     });
   });
 
