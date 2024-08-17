@@ -1,19 +1,21 @@
 import net from "net";
-import { CountryCode } from "../location";
+import { CountryCode, getCountryCodeFromIpAddress } from "../location";
 import {
   COUNTRY_CODE_PROVIDERS_PROXY_PORT_MAPPING,
   PROVIDERS_PROXY_PORT,
 } from "../constants";
+import logger from "../logger";
 
-export const createJumpers = ({
-  countryCode,
+export const createJumpers = async ({
   tunnelHost,
   minimumAvailability,
 }: {
-  countryCode: CountryCode;
   tunnelHost: string;
   minimumAvailability: number;
 }) => {
+  const countryCode = await getCountryCodeFromIpAddress();
+  if (!countryCode) return logger.error("Unsupported Country Code");
+
   const availableJumpers: Symbol[] = [];
 
   const createJumper = () => {

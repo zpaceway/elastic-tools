@@ -1,6 +1,4 @@
-import { CountryCode } from "../location";
-export declare const createJumpers: ({ countryCode, tunnelHost, minimumAvailability, }: {
-    countryCode: CountryCode;
+export declare const createJumpers: ({ tunnelHost, minimumAvailability, }: {
     tunnelHost: string;
     minimumAvailability: number;
-}) => void;
+}) => Promise<void>;
