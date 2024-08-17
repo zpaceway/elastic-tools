@@ -4,7 +4,14 @@ import { CountryCode, geoIpAddressCountryCode } from "./location";
 import {
   COUNTRY_CODE_CLIENTS_PROXY_PORT_MAPPING,
   COUNTRY_CODE_PROVIDERS_PROXY_PORT_MAPPING,
+  PUBLIC_KEY,
 } from "./constants";
+import {
+  decryptBuffer,
+  encryptBuffer,
+  handleIncommingEncryptedMessage,
+  inTcpChunks,
+} from "./crypto";
 
 export const createTunnel = ({ countryCode }: { countryCode: CountryCode }) => {
   const availableProviders: net.Socket[] = [];
@@ -50,8 +57,26 @@ export const createTunnel = ({ countryCode }: { countryCode: CountryCode }) => {
 
     logger.log(`Available providers ${availableProviders.length}`);
 
-    clientSocket.pipe(providerSocket, { end: true });
-    providerSocket.pipe(clientSocket, { end: true });
+    const incommingEncryptedMessage = {
+      buffer: Buffer.from([]),
+      size: -1,
+    };
+
+    clientSocket.on("data", (data) => {
+      handleIncommingEncryptedMessage({
+        incommingEncryptedMessage,
+        targetSocket: providerSocket,
+        data,
+      });
+    });
+
+    providerSocket.on("data", (data) => {
+      const encrypted = encryptBuffer(data, PUBLIC_KEY);
+      inTcpChunks(encrypted).forEach((chunk) => clientSocket.write(chunk));
+    });
+
+    clientSocket.on("end", providerSocket.end);
+    providerSocket.on("end", clientSocket.end);
 
     providerSocket.on("error", (err) => {
       clientSocket.write(

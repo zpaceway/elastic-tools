@@ -3,7 +3,15 @@ import { CountryCode } from "./location";
 import {
   CLIENTS_PROXY_PORT,
   COUNTRY_CODE_CLIENTS_PROXY_PORT_MAPPING,
+  PUBLIC_KEY,
 } from "./constants";
+import {
+  decryptBuffer,
+  encryptBuffer,
+  handleIncommingEncryptedMessage,
+  inTcpChunks,
+} from "./crypto";
+import logger from "./logger";
 
 export const createClient = ({
   tunnelHost,
@@ -20,8 +28,26 @@ export const createClient = ({
       port: COUNTRY_CODE_CLIENTS_PROXY_PORT_MAPPING[countryCode],
     });
 
-    clientSocket.pipe(tunnelSocket, { end: true });
-    tunnelSocket.pipe(clientSocket, { end: true });
+    const incommingEncryptedMessage = {
+      buffer: Buffer.from([]),
+      size: -1,
+    };
+
+    clientSocket.on("data", (data) => {
+      const encrypted = encryptBuffer(data, PUBLIC_KEY);
+      inTcpChunks(encrypted).forEach((chunk) => tunnelSocket.write(chunk));
+    });
+
+    tunnelSocket.on("data", (data) => {
+      handleIncommingEncryptedMessage({
+        incommingEncryptedMessage,
+        targetSocket: clientSocket,
+        data,
+      });
+    });
+
+    clientSocket.on("end", tunnelSocket.end);
+    tunnelSocket.on("end", clientSocket.end);
 
     tunnelSocket.on("error", (err) => {
       clientSocket.write(
