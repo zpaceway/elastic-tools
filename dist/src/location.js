@@ -9,9 +9,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.geoIpAddressCountryCode = void 0;
+exports.getCountryCodeFromIpAddress = void 0;
 const cachedIpCountryMapping = {};
-const geoIpAddressCountryCode = (ipAddress) => __awaiter(void 0, void 0, void 0, function* () {
+const getCountryCodeFromIpAddress = (ipAddress) => __awaiter(void 0, void 0, void 0, function* () {
     ipAddress = (ipAddress || "").replace("::ffff:", "").replace("127.0.0.1", "");
     if (cachedIpCountryMapping[ipAddress])
         return cachedIpCountryMapping[ipAddress];
@@ -21,4 +21,4 @@ const geoIpAddressCountryCode = (ipAddress) => __awaiter(void 0, void 0, void 0,
     cachedIpCountryMapping[ipAddress] = countryCode;
     return cachedIpCountryMapping[ipAddress];
 });
-exports.geoIpAddressCountryCode = geoIpAddressCountryCode;
+exports.getCountryCodeFromIpAddress = getCountryCodeFromIpAddress;

@@ -1,6 +1,6 @@
 import net from "net";
 import logger from "./logger";
-import { CountryCode, geoIpAddressCountryCode } from "./location";
+import { CountryCode, getCountryCodeFromIpAddress } from "./location";
 import {
   COUNTRY_CODE_CLIENTS_PROXY_PORT_MAPPING,
   COUNTRY_CODE_PROVIDERS_PROXY_PORT_MAPPING,
@@ -18,7 +18,7 @@ export const createTunnel = ({ countryCode }: { countryCode: CountryCode }) => {
 
   const onProviderConnection = async (providerSocket: net.Socket) => {
     providerSocket.pause();
-    const providerCountryCode = await geoIpAddressCountryCode(
+    const providerCountryCode = await getCountryCodeFromIpAddress(
       providerSocket.remoteAddress
     );
     providerSocket.resume();
@@ -39,7 +39,7 @@ export const createTunnel = ({ countryCode }: { countryCode: CountryCode }) => {
 
   const onClientConnection = async (clientSocket: net.Socket) => {
     clientSocket.pause();
-    const countryCode = await geoIpAddressCountryCode(
+    const countryCode = await getCountryCodeFromIpAddress(
       clientSocket.remoteAddress
     );
     clientSocket.resume();

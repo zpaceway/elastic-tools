@@ -22,7 +22,7 @@ const createTunnel = ({ countryCode }) => {
     const availableProviders = [];
     const onProviderConnection = (providerSocket) => __awaiter(void 0, void 0, void 0, function* () {
         providerSocket.pause();
-        const providerCountryCode = yield (0, location_1.geoIpAddressCountryCode)(providerSocket.remoteAddress);
+        const providerCountryCode = yield (0, location_1.getCountryCodeFromIpAddress)(providerSocket.remoteAddress);
         providerSocket.resume();
         if (countryCode !== providerCountryCode) {
             providerSocket.write("HTTP/1.1 500 Internal Server Error\r\n" +
@@ -36,7 +36,7 @@ const createTunnel = ({ countryCode }) => {
     });
     const onClientConnection = (clientSocket) => __awaiter(void 0, void 0, void 0, function* () {
         clientSocket.pause();
-        const countryCode = yield (0, location_1.geoIpAddressCountryCode)(clientSocket.remoteAddress);
+        const countryCode = yield (0, location_1.getCountryCodeFromIpAddress)(clientSocket.remoteAddress);
         clientSocket.resume();
         logger_1.default.log("New client connected from", countryCode);
         const providerSocket = availableProviders.pop();

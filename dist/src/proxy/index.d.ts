@@ -1,8 +1,6 @@
-import { CountryCode } from "../location";
-export declare const createProxy: ({ countryCode, tunnelHost, minimumAvailability, }: {
-    countryCode: CountryCode;
+export declare const createProxy: ({ tunnelHost, minimumAvailability, }: {
     tunnelHost: string;
     minimumAvailability: number;
-}) => {
+}) => Promise<void | {
     listen: () => void;
-};
+}>;

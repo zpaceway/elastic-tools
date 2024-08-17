@@ -3,12 +3,10 @@ import { createTunnel, createProxy, createClient } from "../src";
 const tunnel = createTunnel({ countryCode: "EC" });
 tunnel.listen();
 
-const proxy = createProxy({
-  countryCode: "EC",
+createProxy({
   tunnelHost: "localhost",
   minimumAvailability: 10,
-});
-proxy.listen();
+}).then((proxy) => proxy && proxy.listen());
 
 const client = createClient({
   tunnelHost: "elastic.zpaceway.com",

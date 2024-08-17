@@ -21,7 +21,7 @@ type IpApiResponse = {
 
 const cachedIpCountryMapping: Record<string, CountryCode | undefined> = {};
 
-export const geoIpAddressCountryCode = async (ipAddress?: string) => {
+export const getCountryCodeFromIpAddress = async (ipAddress?: string) => {
   ipAddress = (ipAddress || "").replace("::ffff:", "").replace("127.0.0.1", "");
 
   if (cachedIpCountryMapping[ipAddress])
