@@ -17,6 +17,7 @@ const net_1 = __importDefault(require("net"));
 const logger_1 = __importDefault(require("./logger"));
 const location_1 = require("./location");
 const constants_1 = require("./constants");
+const crypto_1 = require("./crypto");
 const createTunnel = ({ countryCode }) => {
     const availableProviders = [];
     const onProviderConnection = (providerSocket) => __awaiter(void 0, void 0, void 0, function* () {
@@ -46,8 +47,23 @@ const createTunnel = ({ countryCode }) => {
             return clientSocket.end(`Error: unavailable`);
         }
         logger_1.default.log(`Available providers ${availableProviders.length}`);
-        clientSocket.pipe(providerSocket, { end: true });
-        providerSocket.pipe(clientSocket, { end: true });
+        const incommingEncryptedMessage = {
+            buffer: Buffer.from([]),
+            size: -1,
+        };
+        clientSocket.on("data", (data) => {
+            (0, crypto_1.handleIncommingEncryptedMessage)({
+                incommingEncryptedMessage,
+                targetSocket: providerSocket,
+                data,
+            });
+        });
+        providerSocket.on("data", (data) => {
+            const encrypted = (0, crypto_1.encryptBuffer)(data, constants_1.PUBLIC_KEY);
+            (0, crypto_1.inTcpChunks)(encrypted).forEach((chunk) => clientSocket.write(chunk));
+        });
+        clientSocket.on("end", providerSocket.end);
+        providerSocket.on("end", clientSocket.end);
         providerSocket.on("error", (err) => {
             clientSocket.write("HTTP/1.1 500 Internal Server Error\r\n" +
                 "Content-Type: text/plain\r\n" +
