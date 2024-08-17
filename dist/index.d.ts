@@ -1,3 +1,3 @@
-import { createProxy } from "./proxy/proxy";
+import { createProxy } from "./proxy";
 import { createTunnel } from "./tunnel";
 export { createTunnel, createProxy };

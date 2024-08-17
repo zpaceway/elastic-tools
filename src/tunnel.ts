@@ -1,24 +1,16 @@
 import net from "net";
 
-export const createTunnel = ({
-  clientsProxyPort,
-  providersProxyPort,
-}: {
-  clientsProxyPort: number;
-  providersProxyPort: number;
-}) => {
-  const CLIENTS_PROXY_PORT = clientsProxyPort;
-  const PROVIDERS_PROXY_PORT = providersProxyPort;
-  const AVAILABLE_PROVIDERS: net.Socket[] = [];
+export const createTunnel = () => {
+  const availableProviders: net.Socket[] = [];
 
   const onProviderConnection = (providerSocket: net.Socket) => {
     console.log("New provider added");
-    AVAILABLE_PROVIDERS.push(providerSocket);
-    console.log(`Available providers ${AVAILABLE_PROVIDERS.length}`);
+    availableProviders.push(providerSocket);
+    console.log(`Available providers ${availableProviders.length}`);
   };
 
   const onClientConnection = (clientSocket: net.Socket) => {
-    const providerSocket = AVAILABLE_PROVIDERS.pop();
+    const providerSocket = availableProviders.pop();
 
     if (!providerSocket) {
       clientSocket.write(
@@ -29,13 +21,7 @@ export const createTunnel = ({
       return clientSocket.end(`Error: unavailable`);
     }
 
-    AVAILABLE_PROVIDERS.splice(
-      AVAILABLE_PROVIDERS.findIndex(
-        (_provider) => _provider === providerSocket
-      ),
-      1
-    );
-    console.log(`Available providers ${AVAILABLE_PROVIDERS.length}`);
+    console.log(`Available providers ${availableProviders.length}`);
 
     clientSocket.pipe(providerSocket, { end: true });
     providerSocket.pipe(clientSocket, { end: true });
@@ -50,11 +36,28 @@ export const createTunnel = ({
     });
   };
 
-  const clientProxyServer = net.createServer();
-  clientProxyServer.listen(CLIENTS_PROXY_PORT);
-  clientProxyServer.on("connection", onClientConnection);
+  const clientProxyServer = net.createServer({
+    allowHalfOpen: true,
+    keepAlive: true,
+  });
+  const providerProxyServer = net.createServer({
+    allowHalfOpen: true,
+    keepAlive: true,
+  });
 
-  const providerProxyServer = net.createServer();
-  providerProxyServer.listen(PROVIDERS_PROXY_PORT);
+  clientProxyServer.on("connection", onClientConnection);
   providerProxyServer.on("connection", onProviderConnection);
+
+  return {
+    listen: ({
+      clientsProxyPort,
+      providersProxyPort,
+    }: {
+      clientsProxyPort: number;
+      providersProxyPort: number;
+    }) => {
+      providerProxyServer.listen(providersProxyPort);
+      clientProxyServer.listen(clientsProxyPort);
+    },
+  };
 };
