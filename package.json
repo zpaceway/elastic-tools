@@ -5,7 +5,7 @@
   "scripts": {
     "dev:tunnel": "ts-node-dev src/tunnel.ts",
     "dev:proxy": "ts-node-dev src/proxy.ts",
-    "build": "tsc",
+    "build": "rm -f -r ./dist && tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
