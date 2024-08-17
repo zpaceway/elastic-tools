@@ -11,13 +11,11 @@ function getCallerInfo() {
     const err = new Error();
     const stack = err.stack;
     Error.prepareStackTrace = originalFunc;
-    // Skip the first two stack frames to get the caller of the logger
     const caller = stack[2];
     const fullPath = caller === null || caller === void 0 ? void 0 : caller.getFileName();
     const lineNumber = caller === null || caller === void 0 ? void 0 : caller.getLineNumber();
     if (!fullPath)
         return __filename;
-    // Get the path relative to the main module (the entry point)
     const relativePath = path_1.default.relative(path_1.default.dirname(((_a = require.main) === null || _a === void 0 ? void 0 : _a.filename) || ""), fullPath);
     return `${relativePath || __filename}:${lineNumber}`;
 }

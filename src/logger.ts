@@ -7,14 +7,12 @@ function getCallerInfo() {
   const stack = err.stack as unknown as NodeJS.CallSite[];
   Error.prepareStackTrace = originalFunc;
 
-  // Skip the first two stack frames to get the caller of the logger
   const caller = stack[2];
   const fullPath = caller?.getFileName();
   const lineNumber = caller?.getLineNumber();
 
   if (!fullPath) return __filename;
 
-  // Get the path relative to the main module (the entry point)
   const relativePath = path.relative(
     path.dirname(require.main?.filename || ""),
     fullPath
