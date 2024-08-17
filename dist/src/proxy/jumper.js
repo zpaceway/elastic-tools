@@ -5,21 +5,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createJumpers = void 0;
 const net_1 = __importDefault(require("net"));
-const createJumpers = ({ internalProviderProxyPort, providersProxyHost, providersProxyPort, minimumAvailability, }) => {
+const constants_1 = require("../constants");
+const createJumpers = ({ countryCode, tunnelHost, minimumAvailability, }) => {
     const availableJumpers = [];
     const createJumper = () => {
         const jumper = Symbol();
         const incommingProxySocket = net_1.default.connect({
             allowHalfOpen: true,
             keepAlive: true,
-            host: providersProxyHost,
-            port: providersProxyPort,
+            host: tunnelHost,
+            port: constants_1.COUNTRY_CODE_PROVIDERS_PROXY_PORT_MAPPING[countryCode],
         });
         const providerProxySocket = net_1.default.connect({
             allowHalfOpen: true,
             keepAlive: true,
             host: "127.0.0.1",
-            port: internalProviderProxyPort,
+            port: constants_1.PROVIDERS_PROXY_PORT,
         });
         availableJumpers.push(jumper);
         if (availableJumpers.length < minimumAvailability) {

@@ -1,14 +1,17 @@
-import { createTunnel, createProxy } from "../src";
+import { createTunnel, createProxy, createClient } from "../src";
 
-const tunnel = createTunnel();
-tunnel.listen({
-  clientsProxyPort: 53505,
-  providersProxyPort: 53506,
-});
+const tunnel = createTunnel({ countryCode: "EC" });
+tunnel.listen();
 
 const proxy = createProxy({
+  countryCode: "EC",
+  tunnelHost: "localhost",
   minimumAvailability: 10,
-  providersProxyHost: "localhost",
-  providersProxyPort: 53506,
 });
-proxy.listen({ internalProviderProxyPort: 53507 });
+proxy.listen();
+
+const client = createClient({
+  tunnelHost: "localhost",
+  countryCode: "EC",
+});
+client.listen();

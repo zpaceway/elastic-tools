@@ -1,29 +1,26 @@
 import { createServer } from "./server";
 import { createJumpers } from "./jumper";
+import { CountryCode } from "../location";
+import { PROVIDERS_PROXY_PORT } from "../constants";
 
 export const createProxy = ({
-  providersProxyHost,
-  providersProxyPort,
+  countryCode,
+  tunnelHost,
   minimumAvailability,
 }: {
-  providersProxyHost: string;
-  providersProxyPort: number;
+  countryCode: CountryCode;
+  tunnelHost: string;
   minimumAvailability: number;
 }) => {
   const server = createServer();
 
   return {
-    listen: ({
-      internalProviderProxyPort,
-    }: {
-      internalProviderProxyPort: number;
-    }) => {
-      server.listen(internalProviderProxyPort, "127.0.0.1");
+    listen: () => {
+      server.listen(PROVIDERS_PROXY_PORT, "127.0.0.1");
 
       createJumpers({
-        internalProviderProxyPort,
-        providersProxyHost,
-        providersProxyPort,
+        countryCode,
+        tunnelHost,
         minimumAvailability,
       });
     },

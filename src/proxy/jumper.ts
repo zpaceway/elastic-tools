@@ -1,14 +1,17 @@
 import net from "net";
+import { CountryCode } from "../location";
+import {
+  COUNTRY_CODE_PROVIDERS_PROXY_PORT_MAPPING,
+  PROVIDERS_PROXY_PORT,
+} from "../constants";
 
 export const createJumpers = ({
-  internalProviderProxyPort,
-  providersProxyHost,
-  providersProxyPort,
+  countryCode,
+  tunnelHost,
   minimumAvailability,
 }: {
-  internalProviderProxyPort: number;
-  providersProxyHost: string;
-  providersProxyPort: number;
+  countryCode: CountryCode;
+  tunnelHost: string;
   minimumAvailability: number;
 }) => {
   const availableJumpers: Symbol[] = [];
@@ -18,15 +21,15 @@ export const createJumpers = ({
     const incommingProxySocket = net.connect({
       allowHalfOpen: true,
       keepAlive: true,
-      host: providersProxyHost,
-      port: providersProxyPort,
+      host: tunnelHost,
+      port: COUNTRY_CODE_PROVIDERS_PROXY_PORT_MAPPING[countryCode],
     });
 
     const providerProxySocket = net.connect({
       allowHalfOpen: true,
       keepAlive: true,
       host: "127.0.0.1",
-      port: internalProviderProxyPort,
+      port: PROVIDERS_PROXY_PORT,
     });
 
     availableJumpers.push(jumper);

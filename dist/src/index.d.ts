@@ -1,3 +1,4 @@
 import { createProxy } from "./proxy";
 import { createTunnel } from "./tunnel";
-export { createTunnel, createProxy };
+import { createClient } from "./client";
+export { createTunnel, createProxy, createClient };

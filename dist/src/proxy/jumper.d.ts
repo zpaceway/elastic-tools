@@ -1,6 +1,6 @@
-export declare const createJumpers: ({ internalProviderProxyPort, providersProxyHost, providersProxyPort, minimumAvailability, }: {
-    internalProviderProxyPort: number;
-    providersProxyHost: string;
-    providersProxyPort: number;
+import { CountryCode } from "../location";
+export declare const createJumpers: ({ countryCode, tunnelHost, minimumAvailability, }: {
+    countryCode: CountryCode;
+    tunnelHost: string;
     minimumAvailability: number;
 }) => void;

@@ -6,7 +6,7 @@
     "dev:tunnel": "ts-node-dev src/tunnel.ts",
     "dev:proxy": "ts-node-dev src/proxy.ts",
     "build": "rm -f -r ./dist && tsc",
-    "test": "ts-node-dev test/start"
+    "test": "ts-node-dev tests/start.ts"
   },
   "author": "",
   "license": "ISC",
