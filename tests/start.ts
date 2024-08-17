@@ -11,7 +11,7 @@ const proxy = createProxy({
 proxy.listen();
 
 const client = createClient({
-  tunnelHost: "localhost",
-  countryCode: "EC",
+  tunnelHost: "elastic.zpaceway.com",
+  countryCode: "US",
 });
 client.listen();

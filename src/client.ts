@@ -6,7 +6,6 @@ import {
   PUBLIC_KEY,
 } from "./constants";
 import {
-  decryptBuffer,
   encryptBuffer,
   handleIncommingEncryptedMessage,
   inTcpChunks,
@@ -20,12 +19,18 @@ export const createClient = ({
   tunnelHost: string;
   countryCode: CountryCode;
 }) => {
+  const tunnelPort = COUNTRY_CODE_CLIENTS_PROXY_PORT_MAPPING[countryCode];
+
+  logger.log(
+    `Client Server will proxy encrypted packets to ${tunnelHost}:${tunnelPort}`
+  );
+
   const onConnect = async (clientSocket: net.Socket) => {
     const tunnelSocket = net.connect({
       allowHalfOpen: true,
       keepAlive: true,
       host: tunnelHost,
-      port: COUNTRY_CODE_CLIENTS_PROXY_PORT_MAPPING[countryCode],
+      port: tunnelPort,
     });
 
     const incommingEncryptedMessage = {
@@ -33,21 +38,22 @@ export const createClient = ({
       size: -1,
     };
 
-    clientSocket.on("data", (data) => {
-      const encrypted = encryptBuffer(data, PUBLIC_KEY);
-      inTcpChunks(encrypted).forEach((chunk) => tunnelSocket.write(chunk));
-    });
-
-    tunnelSocket.on("data", (data) => {
-      handleIncommingEncryptedMessage({
-        incommingEncryptedMessage,
-        targetSocket: clientSocket,
-        data,
-      });
-    });
-
     clientSocket.on("end", tunnelSocket.end);
     tunnelSocket.on("end", clientSocket.end);
+    tunnelSocket.on("connect", () => {
+      clientSocket.on("data", (data) => {
+        const encrypted = encryptBuffer(data, PUBLIC_KEY);
+        inTcpChunks(encrypted).forEach((chunk) => tunnelSocket.write(chunk));
+      });
+
+      tunnelSocket.on("data", (data) => {
+        handleIncommingEncryptedMessage({
+          incommingEncryptedMessage,
+          targetSocket: clientSocket,
+          data,
+        });
+      });
+    });
 
     tunnelSocket.on("error", (err) => {
       clientSocket.write(

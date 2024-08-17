@@ -10,7 +10,7 @@ const proxy = (0, src_1.createProxy)({
 });
 proxy.listen();
 const client = (0, src_1.createClient)({
-    tunnelHost: "localhost",
-    countryCode: "EC",
+    tunnelHost: "elastic.zpaceway.com",
+    countryCode: "US",
 });
 client.listen();

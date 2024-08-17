@@ -8,10 +8,11 @@ const crypto_1 = __importDefault(require("crypto"));
 const constants_1 = require("./constants");
 const TCP_CHUNK_SIZE = 1400;
 const encryptBuffer = (buffer, key) => {
-    const iv = crypto_1.default.randomBytes(16);
-    const cipher = crypto_1.default.createCipheriv("aes-256-cbc", key, iv);
+    const iv = crypto_1.default.randomBytes(12);
+    const cipher = crypto_1.default.createCipheriv("aes-256-gcm", key, iv);
     const encrypted = Buffer.concat([cipher.update(buffer), cipher.final()]);
-    const result = Buffer.concat([iv, encrypted]);
+    const authTag = cipher.getAuthTag();
+    const result = Buffer.concat([iv, authTag, encrypted]);
     const encoded = Buffer.concat([
         Buffer.from(result.length.toString().padStart(8, "0")),
         result,
@@ -21,9 +22,11 @@ const encryptBuffer = (buffer, key) => {
 exports.encryptBuffer = encryptBuffer;
 const decryptBuffer = (buffer, key) => {
     const data = buffer.subarray(8);
-    const iv = data.subarray(0, 16);
-    const encryptedData = data.subarray(16);
-    const decipher = crypto_1.default.createDecipheriv("aes-256-cbc", key, iv);
+    const iv = data.subarray(0, 12);
+    const authTag = data.subarray(12, 28);
+    const encryptedData = data.subarray(28);
+    const decipher = crypto_1.default.createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(authTag);
     return Buffer.concat([decipher.update(encryptedData), decipher.final()]);
 };
 exports.decryptBuffer = decryptBuffer;
