@@ -3,5 +3,7 @@ export declare const createProxy: ({ providersProxyHost, providersProxyPort, min
     providersProxyPort: number;
     minimumAvailability: number;
 }) => {
-    listen: (internalProviderProxyPort: number) => void;
+    listen: ({ internalProviderProxyPort, }: {
+        internalProviderProxyPort: number;
+    }) => void;
 };

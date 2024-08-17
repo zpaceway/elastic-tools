@@ -13,7 +13,11 @@ export const createProxy = ({
   const server = createServer();
 
   return {
-    listen: (internalProviderProxyPort: number) => {
+    listen: ({
+      internalProviderProxyPort,
+    }: {
+      internalProviderProxyPort: number;
+    }) => {
       server.listen(internalProviderProxyPort);
 
       createJumpers({

@@ -6,7 +6,7 @@ const jumper_1 = require("./jumper");
 const createProxy = ({ providersProxyHost, providersProxyPort, minimumAvailability, }) => {
     const server = (0, server_1.createServer)();
     return {
-        listen: (internalProviderProxyPort) => {
+        listen: ({ internalProviderProxyPort, }) => {
             server.listen(internalProviderProxyPort);
             (0, jumper_1.createJumpers)({
                 internalProviderProxyPort,
