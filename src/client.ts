@@ -22,7 +22,7 @@ export const createClient = ({
   logger.log(`Client Server will proxy encrypted packets to ${tunnelHost}:`);
 
   const onConnect = async (clientSocket: net.Socket) => {
-    const tunnelSocket = net.connect({
+    const tunnelSocket = net.createConnection({
       allowHalfOpen: true,
       keepAlive: true,
       host: tunnelHost,
