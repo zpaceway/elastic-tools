@@ -6,8 +6,8 @@ import {
   PUBLIC_KEY,
 } from "./constants";
 import {
-  encryptBuffer,
-  handleIncommingEncryptedMessage,
+  encryptTcpChunk,
+  handleIncommingEncryptedTcpChunk,
   inTcpChunks,
 } from "./crypto";
 import logger from "./logger";
@@ -39,7 +39,7 @@ export const createClient = ({
     tunnelSocket.on("connect", () => {
       tunnelSocket.write(countryCode);
       clientSocket.on("data", (data) => {
-        const encrypted = encryptBuffer({
+        const encrypted = encryptTcpChunk({
           buffer: data,
           key: PUBLIC_KEY,
         });
@@ -47,7 +47,7 @@ export const createClient = ({
       });
 
       tunnelSocket.on("data", (data) => {
-        handleIncommingEncryptedMessage({
+        handleIncommingEncryptedTcpChunk({
           sweeper,
           data,
           onDecrypted: (decrypted) => {

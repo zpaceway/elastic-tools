@@ -1,10 +1,19 @@
 import crypto from "crypto";
-import net from "net";
+import zlib from "zlib";
 import { PUBLIC_KEY } from "./constants";
 
 const TCP_CHUNK_SIZE = 1400;
+const TCP_CHUNK_SIZE_LENGTH = TCP_CHUNK_SIZE.toString().length + 1;
 
-export const encryptBuffer = ({
+export const decompressBuffer = (buffer: Buffer) => {
+  return zlib.inflateSync(buffer);
+};
+
+export const compressBuffer = (buffer: Buffer) => {
+  return zlib.deflateSync(buffer);
+};
+
+export const encryptTcpChunk = ({
   buffer,
   key,
 }: {
@@ -15,23 +24,23 @@ export const encryptBuffer = ({
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   const encrypted = Buffer.concat([cipher.update(buffer), cipher.final()]);
   const authTag = cipher.getAuthTag();
-  const result = Buffer.concat([iv, authTag, encrypted]);
+  const result = compressBuffer(Buffer.concat([iv, authTag, encrypted]));
   const encoded = Buffer.concat([
-    Buffer.from(result.length.toString().padStart(8, "0")),
+    Buffer.from(result.length.toString().padStart(TCP_CHUNK_SIZE_LENGTH, "0")),
     result,
   ]);
 
   return encoded;
 };
 
-export const decryptBuffer = ({
+export const decryptTcpChunk = ({
   buffer,
   key,
 }: {
   buffer: Buffer;
   key: Buffer;
 }) => {
-  const data = buffer.subarray(8);
+  const data = decompressBuffer(buffer.subarray(TCP_CHUNK_SIZE_LENGTH));
   const iv = data.subarray(0, 12);
   const authTag = data.subarray(12, 28);
   const encryptedData = data.subarray(28);
@@ -53,7 +62,7 @@ export const inTcpChunks = (data: Buffer) => {
   return chunks;
 };
 
-export const handleIncommingEncryptedMessage = ({
+export const handleIncommingEncryptedTcpChunk = ({
   sweeper,
   data,
   onDecrypted,
@@ -63,12 +72,14 @@ export const handleIncommingEncryptedMessage = ({
   onDecrypted: (decrypted: Buffer) => void;
 }) => {
   sweeper.buffer = Buffer.concat([sweeper.buffer, data]);
-  while (sweeper.buffer.length >= 8) {
+  while (sweeper.buffer.length >= TCP_CHUNK_SIZE_LENGTH) {
     if (sweeper.size === -1) {
-      sweeper.size = parseInt(sweeper.buffer.subarray(0, 8).toString()) + 8;
+      sweeper.size =
+        parseInt(sweeper.buffer.subarray(0, TCP_CHUNK_SIZE_LENGTH).toString()) +
+        TCP_CHUNK_SIZE_LENGTH;
     }
     if (sweeper.buffer.length >= sweeper.size) {
-      const decrypted = decryptBuffer({
+      const decrypted = decryptTcpChunk({
         buffer: sweeper.buffer.subarray(0, sweeper.size),
         key: PUBLIC_KEY,
       });

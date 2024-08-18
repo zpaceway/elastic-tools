@@ -8,8 +8,8 @@ import {
   PUBLIC_KEY,
 } from "./constants";
 import {
-  encryptBuffer,
-  handleIncommingEncryptedMessage,
+  encryptTcpChunk,
+  handleIncommingEncryptedTcpChunk,
   inTcpChunks,
 } from "./crypto";
 import { getCountryCodeFromIpAddress } from "./location";
@@ -80,7 +80,7 @@ export const createTunnel = () => {
       };
 
       clientSocket.on("data", (data) => {
-        handleIncommingEncryptedMessage({
+        handleIncommingEncryptedTcpChunk({
           sweeper,
           data,
           onDecrypted: (decrypted) => {
@@ -95,7 +95,7 @@ export const createTunnel = () => {
       clientSocket.resume();
 
       proxySocket.on("data", (data) => {
-        const encrypted = encryptBuffer({
+        const encrypted = encryptTcpChunk({
           buffer: data,
           key: PUBLIC_KEY,
         });
