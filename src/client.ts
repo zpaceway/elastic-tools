@@ -1,8 +1,8 @@
 import net from "net";
-import { CountryCode } from "./location";
 import {
-  CLIENTS_PROXY_PORT,
-  COUNTRY_CODE_CLIENTS_PROXY_PORT_MAPPING,
+  CLIENT_SERVER_PORT,
+  CLIENTS_TUNNEL_PORT,
+  CountryCode,
   PUBLIC_KEY,
 } from "./constants";
 import {
@@ -19,21 +19,17 @@ export const createClient = ({
   tunnelHost: string;
   countryCode: CountryCode;
 }) => {
-  const tunnelPort = COUNTRY_CODE_CLIENTS_PROXY_PORT_MAPPING[countryCode];
-
-  logger.log(
-    `Client Server will proxy encrypted packets to ${tunnelHost}:${tunnelPort}`
-  );
+  logger.log(`Client Server will proxy encrypted packets to ${tunnelHost}:`);
 
   const onConnect = async (clientSocket: net.Socket) => {
     const tunnelSocket = net.connect({
       allowHalfOpen: true,
       keepAlive: true,
       host: tunnelHost,
-      port: tunnelPort,
+      port: CLIENTS_TUNNEL_PORT,
     });
 
-    const incommingEncryptedMessage = {
+    const sweeper = {
       buffer: Buffer.from([]),
       size: -1,
     };
@@ -41,16 +37,25 @@ export const createClient = ({
     clientSocket.on("end", tunnelSocket.end);
     tunnelSocket.on("end", clientSocket.end);
     tunnelSocket.on("connect", () => {
+      tunnelSocket.write(countryCode);
       clientSocket.on("data", (data) => {
-        const encrypted = encryptBuffer(data, PUBLIC_KEY);
+        const encrypted = encryptBuffer({
+          buffer: data,
+          key: PUBLIC_KEY,
+        });
         inTcpChunks(encrypted).forEach((chunk) => tunnelSocket.write(chunk));
       });
 
       tunnelSocket.on("data", (data) => {
         handleIncommingEncryptedMessage({
-          incommingEncryptedMessage,
-          targetSocket: clientSocket,
+          sweeper,
           data,
+          onDecrypted: (decrypted) => {
+            clientSocket.write(decrypted, (err) => {
+              if (!err) return;
+              clientSocket.end();
+            });
+          },
         });
       });
     });
@@ -74,7 +79,7 @@ export const createClient = ({
 
   return {
     listen: () => {
-      clientServer.listen(CLIENTS_PROXY_PORT);
+      clientServer.listen(CLIENT_SERVER_PORT);
     },
   };
 };

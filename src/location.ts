@@ -1,6 +1,4 @@
-import { COUNTRY_CODES } from "./constants";
-
-export type CountryCode = (typeof COUNTRY_CODES)[number];
+import { CountryCode } from "./constants";
 
 type IpApiResponse = {
   status: string;

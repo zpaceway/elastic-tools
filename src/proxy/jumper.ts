@@ -1,9 +1,6 @@
 import net from "net";
-import { CountryCode, getCountryCodeFromIpAddress } from "../location";
-import {
-  COUNTRY_CODE_PROVIDERS_PROXY_PORT_MAPPING,
-  PROVIDERS_PROXY_PORT,
-} from "../constants";
+import { getCountryCodeFromIpAddress } from "../location";
+import { PROXY_SERVER_PORT, PROXIES_TUNNEL_PORT } from "../constants";
 import logger from "../logger";
 
 export const createJumpers = async ({
@@ -20,18 +17,18 @@ export const createJumpers = async ({
 
   const createJumper = () => {
     const jumper = Symbol();
-    const incommingProxySocket = net.connect({
+    const tunnelSocket = net.connect({
       allowHalfOpen: true,
       keepAlive: true,
       host: tunnelHost,
-      port: COUNTRY_CODE_PROVIDERS_PROXY_PORT_MAPPING[countryCode],
+      port: PROXIES_TUNNEL_PORT,
     });
 
-    const providerProxySocket = net.connect({
+    const proxySocket = net.connect({
       allowHalfOpen: true,
       keepAlive: true,
       host: "127.0.0.1",
-      port: PROVIDERS_PROXY_PORT,
+      port: PROXY_SERVER_PORT,
     });
 
     availableJumpers.push(jumper);
@@ -51,12 +48,12 @@ export const createJumpers = async ({
     };
 
     ["data", "end", "close", "timeout"].map((event) => {
-      incommingProxySocket.on(event, onUnavailable);
-      providerProxySocket.on(event, onUnavailable);
+      tunnelSocket.on(event, onUnavailable);
+      proxySocket.on(event, onUnavailable);
     });
 
-    incommingProxySocket.pipe(providerProxySocket, { end: true });
-    providerProxySocket.pipe(incommingProxySocket, { end: true });
+    tunnelSocket.pipe(proxySocket, { end: true });
+    proxySocket.pipe(tunnelSocket, { end: true });
   };
 
   createJumper();

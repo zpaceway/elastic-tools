@@ -1,113 +1,137 @@
 import net from "net";
 import logger from "./logger";
-import { CountryCode, getCountryCodeFromIpAddress } from "./location";
 import {
-  COUNTRY_CODE_CLIENTS_PROXY_PORT_MAPPING,
-  COUNTRY_CODE_PROVIDERS_PROXY_PORT_MAPPING,
+  CLIENTS_TUNNEL_PORT,
+  COUNTRY_CODES,
+  CountryCode,
+  PROXIES_TUNNEL_PORT,
   PUBLIC_KEY,
 } from "./constants";
 import {
-  decryptBuffer,
   encryptBuffer,
   handleIncommingEncryptedMessage,
   inTcpChunks,
 } from "./crypto";
+import { getCountryCodeFromIpAddress } from "./location";
 
-export const createTunnel = ({ countryCode }: { countryCode: CountryCode }) => {
-  const availableProviders: net.Socket[] = [];
+export const createTunnel = () => {
+  const availableProxiesByCountry: Record<CountryCode, net.Socket[]> =
+    COUNTRY_CODES.reduce((acc, countryCode) => {
+      acc[countryCode] = [];
+      return acc;
+    }, {} as Record<CountryCode, net.Socket[]>);
 
-  const onProviderConnection = async (providerSocket: net.Socket) => {
-    providerSocket.pause();
-    const providerCountryCode = await getCountryCodeFromIpAddress(
-      providerSocket.remoteAddress
+  const onProxyConnection = async (proxySocket: net.Socket) => {
+    proxySocket.pause();
+    const proxyCountryCode = await getCountryCodeFromIpAddress(
+      proxySocket.remoteAddress
     );
-    providerSocket.resume();
+    proxySocket.resume();
 
-    if (countryCode !== providerCountryCode) {
-      providerSocket.write(
+    if (!proxyCountryCode) {
+      proxySocket.write(
         "HTTP/1.1 500 Internal Server Error\r\n" +
           "Content-Type: text/plain\r\n" +
           "\r\n"
       );
-      return providerSocket.end(`Error: incorrect country code`);
+      return proxySocket.end(`Error: incorrect country code`);
     }
 
-    logger.log("New provider connected from", providerCountryCode);
-    availableProviders.push(providerSocket);
-    logger.info(`Available providers ${availableProviders.length}`);
+    logger.log("New proxy connected from", proxyCountryCode);
+    availableProxiesByCountry[proxyCountryCode].push(proxySocket);
+    logger.info(
+      `Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`
+    );
   };
 
   const onClientConnection = async (clientSocket: net.Socket) => {
     clientSocket.pause();
-    const countryCode = await getCountryCodeFromIpAddress(
+    const clientsCountryCode = await getCountryCodeFromIpAddress(
       clientSocket.remoteAddress
     );
     clientSocket.resume();
-    logger.log("New client connected from", countryCode);
-    const providerSocket = availableProviders.pop();
 
-    if (!providerSocket) {
-      clientSocket.write(
-        "HTTP/1.1 500 Internal Server Error\r\n" +
-          "Content-Type: text/plain\r\n" +
-          "\r\n"
+    clientSocket.once("data", (data) => {
+      clientSocket.pause();
+      const countryCode = data.subarray(0, 2).toString() as CountryCode;
+      onCountryCode(countryCode, data.subarray(2));
+    });
+
+    const onCountryCode = (countryCode: CountryCode, chunk: Buffer) => {
+      logger.log(`New client connected to ${countryCode}`);
+      const proxySocket = availableProxiesByCountry[countryCode].pop();
+
+      if (!proxySocket) {
+        clientSocket.write(
+          "HTTP/1.1 500 Internal Server Error\r\n" +
+            "Content-Type: text/plain\r\n" +
+            "\r\n"
+        );
+        return clientSocket.end(`Error: unavailable`);
+      }
+
+      logger.log(
+        `Available proxies ${availableProxiesByCountry[countryCode].length}`
       );
-      return clientSocket.end(`Error: unavailable`);
-    }
 
-    logger.log(`Available providers ${availableProviders.length}`);
+      const sweeper = {
+        buffer: Buffer.from([]),
+        size: -1,
+      };
 
-    const incommingEncryptedMessage = {
-      buffer: Buffer.from([]),
-      size: -1,
-    };
-
-    clientSocket.on("data", (data) => {
-      handleIncommingEncryptedMessage({
-        incommingEncryptedMessage,
-        targetSocket: providerSocket,
-        data,
+      clientSocket.on("data", (data) => {
+        handleIncommingEncryptedMessage({
+          sweeper,
+          data,
+          onDecrypted: (decrypted) => {
+            proxySocket.write(decrypted, (err) => {
+              if (!err) return;
+              proxySocket.end();
+            });
+          },
+        });
       });
-    });
+      clientSocket.emit("data", chunk);
+      clientSocket.resume();
 
-    providerSocket.on("data", (data) => {
-      const encrypted = encryptBuffer(data, PUBLIC_KEY);
-      inTcpChunks(encrypted).forEach((chunk) => clientSocket.write(chunk));
-    });
+      proxySocket.on("data", (data) => {
+        const encrypted = encryptBuffer({
+          buffer: data,
+          key: PUBLIC_KEY,
+        });
+        inTcpChunks(encrypted).forEach((chunk) => clientSocket.write(chunk));
+      });
 
-    clientSocket.on("end", providerSocket.end);
-    providerSocket.on("end", clientSocket.end);
+      clientSocket.on("end", proxySocket.end);
+      proxySocket.on("end", clientSocket.end);
 
-    providerSocket.on("error", (err) => {
-      clientSocket.write(
-        "HTTP/1.1 500 Internal Server Error\r\n" +
-          "Content-Type: text/plain\r\n" +
-          "\r\n"
-      );
-      clientSocket.end(`Error: ${err.message}`);
-    });
+      proxySocket.on("error", (err) => {
+        clientSocket.write(
+          "HTTP/1.1 500 Internal Server Error\r\n" +
+            "Content-Type: text/plain\r\n" +
+            "\r\n"
+        );
+        clientSocket.end(`Error: ${err.message}`);
+      });
+    };
   };
 
-  const clientProxyServer = net.createServer({
+  const clientsServerTunnel = net.createServer({
     allowHalfOpen: true,
     keepAlive: true,
   });
-  const providerProxyServer = net.createServer({
+  const proxiesServerTunnel = net.createServer({
     allowHalfOpen: true,
     keepAlive: true,
   });
 
-  clientProxyServer.on("connection", onClientConnection);
-  providerProxyServer.on("connection", onProviderConnection);
+  clientsServerTunnel.on("connection", onClientConnection);
+  proxiesServerTunnel.on("connection", onProxyConnection);
 
   return {
     listen: () => {
-      providerProxyServer.listen(
-        COUNTRY_CODE_PROVIDERS_PROXY_PORT_MAPPING[countryCode]
-      );
-      clientProxyServer.listen(
-        COUNTRY_CODE_CLIENTS_PROXY_PORT_MAPPING[countryCode]
-      );
+      proxiesServerTunnel.listen(PROXIES_TUNNEL_PORT);
+      clientsServerTunnel.listen(CLIENTS_TUNNEL_PORT);
     },
   };
 };

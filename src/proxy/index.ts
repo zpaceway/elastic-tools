@@ -1,6 +1,6 @@
 import { createServer } from "./server";
 import { createJumpers } from "./jumper";
-import { PROVIDERS_PROXY_PORT } from "../constants";
+import { PROXY_SERVER_PORT } from "../constants";
 
 export const createProxy = ({
   tunnelHost,
@@ -13,7 +13,7 @@ export const createProxy = ({
 
   return {
     listen: () => {
-      server.listen(PROVIDERS_PROXY_PORT, "127.0.0.1");
+      server.listen(PROXY_SERVER_PORT, "127.0.0.1");
 
       createJumpers({
         tunnelHost,

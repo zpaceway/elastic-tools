@@ -1,11 +1,16 @@
 import crypto from "crypto";
-import logger from "./logger";
 import net from "net";
 import { PUBLIC_KEY } from "./constants";
 
 const TCP_CHUNK_SIZE = 1400;
 
-export const encryptBuffer = (buffer: Buffer, key: Buffer) => {
+export const encryptBuffer = ({
+  buffer,
+  key,
+}: {
+  buffer: Buffer;
+  key: Buffer;
+}) => {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   const encrypted = Buffer.concat([cipher.update(buffer), cipher.final()]);
@@ -19,7 +24,13 @@ export const encryptBuffer = (buffer: Buffer, key: Buffer) => {
   return encoded;
 };
 
-export const decryptBuffer = (buffer: Buffer, key: Buffer) => {
+export const decryptBuffer = ({
+  buffer,
+  key,
+}: {
+  buffer: Buffer;
+  key: Buffer;
+}) => {
   const data = buffer.subarray(8);
   const iv = data.subarray(0, 12);
   const authTag = data.subarray(12, 28);
@@ -43,43 +54,27 @@ export const inTcpChunks = (data: Buffer) => {
 };
 
 export const handleIncommingEncryptedMessage = ({
-  incommingEncryptedMessage,
+  sweeper,
   data,
-  targetSocket,
+  onDecrypted,
 }: {
-  incommingEncryptedMessage: { buffer: Buffer; size: number };
+  sweeper: { buffer: Buffer; size: number };
   data: Buffer;
-  targetSocket: net.Socket;
+  onDecrypted: (decrypted: Buffer) => void;
 }) => {
-  incommingEncryptedMessage.buffer = Buffer.concat([
-    incommingEncryptedMessage.buffer,
-    data,
-  ]);
-  while (incommingEncryptedMessage.buffer.length >= 8) {
-    if (incommingEncryptedMessage.size === -1) {
-      incommingEncryptedMessage.size =
-        parseInt(incommingEncryptedMessage.buffer.subarray(0, 8).toString()) +
-        8;
+  sweeper.buffer = Buffer.concat([sweeper.buffer, data]);
+  while (sweeper.buffer.length >= 8) {
+    if (sweeper.size === -1) {
+      sweeper.size = parseInt(sweeper.buffer.subarray(0, 8).toString()) + 8;
     }
-    if (
-      incommingEncryptedMessage.buffer.length >= incommingEncryptedMessage.size
-    ) {
-      const decrypted = decryptBuffer(
-        incommingEncryptedMessage.buffer.subarray(
-          0,
-          incommingEncryptedMessage.size
-        ),
-        PUBLIC_KEY
-      );
-      targetSocket.write(decrypted, (err) => {
-        if (!err) return;
-        targetSocket.end();
+    if (sweeper.buffer.length >= sweeper.size) {
+      const decrypted = decryptBuffer({
+        buffer: sweeper.buffer.subarray(0, sweeper.size),
+        key: PUBLIC_KEY,
       });
-      incommingEncryptedMessage.buffer =
-        incommingEncryptedMessage.buffer.subarray(
-          incommingEncryptedMessage.size
-        );
-      incommingEncryptedMessage.size = -1;
+      onDecrypted(decrypted);
+      sweeper.buffer = sweeper.buffer.subarray(sweeper.size);
+      sweeper.size = -1;
       continue;
     }
     break;

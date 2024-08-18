@@ -3,7 +3,7 @@ import { decryptBuffer, encryptBuffer } from "../src/crypto";
 
 const key = PUBLIC_KEY;
 const message = Buffer.from("Hello World");
-const encrypted = encryptBuffer(message, key);
-const decrypted = decryptBuffer(encrypted, key);
+const encrypted = encryptBuffer({ buffer: message, key });
+const decrypted = decryptBuffer({ buffer: encrypted, key });
 
 console.log(decrypted.toString());
