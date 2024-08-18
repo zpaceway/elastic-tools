@@ -11,12 +11,12 @@
   "author": "",
   "license": "ISC",
   "description": "",
+  "dependencies": {
+    "zlib": "^1.0.5"
+  },
   "devDependencies": {
     "@types/node": "^22.3.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.5.4"
-  },
-  "dependencies": {
-    "zlib": "^1.0.5"
   }
 }
