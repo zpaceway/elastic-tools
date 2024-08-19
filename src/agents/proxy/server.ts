@@ -37,9 +37,7 @@ export const createServer = () => {
             () => {
               socket.write(
                 "HTTP/1.1 200 Connection Established\r\n\r\n",
-                (err) => {
-                  if (err) return socket.end();
-                }
+                (err) => err && socket.end()
               );
               targetSocket.pipe(socket);
               socket.pipe(targetSocket);
@@ -53,9 +51,7 @@ export const createServer = () => {
         targetSocket.connect(
           { host: url.hostname, port: parseInt(url.port || "80") },
           () => {
-            targetSocket.write(data, (err) => {
-              if (err) return socket.end();
-            });
+            targetSocket.write(data, (err) => err && targetSocket.end());
             targetSocket.pipe(socket);
             socket.pipe(targetSocket);
             logger.success(`---PROXY--- ${method} ${fullUrl}`);

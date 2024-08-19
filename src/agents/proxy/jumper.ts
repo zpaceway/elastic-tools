@@ -1,6 +1,10 @@
 import net from "net";
 import { getCountryCodeFromIpAddress } from "../../core/location";
-import { PROXY_SERVER_PORT, PROXIES_TUNNEL_PORT } from "../../core/constants";
+import {
+  PROXY_SERVER_PORT,
+  PROXIES_TUNNEL_PORT,
+  KEEP_ALIVE_INTERVAL,
+} from "../../core/constants";
 import logger from "../../core/logger";
 import { PlatformConnector } from "../../core/platform";
 import assert from "assert";
@@ -59,9 +63,7 @@ export const createJumpers = async ({
       proxySocket.on(event, onUnavailable);
     });
 
-    tunnelSocket.write(client.key, (err) => {
-      if (err) return tunnelSocket.end();
-    });
+    tunnelSocket.write(client.key, (err) => err && tunnelSocket.end());
 
     tunnelSocket.on("error", () => tunnelSocket.end());
     proxySocket.on("error", () => proxySocket.end());
@@ -70,6 +72,11 @@ export const createJumpers = async ({
 
     tunnelSocket.pipe(proxySocket);
     proxySocket.pipe(tunnelSocket);
+
+    setInterval(() => {
+      tunnelSocket.write(Buffer.from([]), (err) => err && tunnelSocket.end());
+      proxySocket.write(Buffer.from([]), (err) => err && proxySocket.end());
+    }, KEEP_ALIVE_INTERVAL);
   };
 
   createJumper();

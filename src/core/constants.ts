@@ -257,6 +257,7 @@ export const COUNTRY_CODES = [
 
 export type CountryCode = (typeof COUNTRY_CODES)[number];
 
+export const KEEP_ALIVE_INTERVAL = 2000;
 export const MAX_TCP_CHUNK_SIZE = 1400;
 export const TCP_CHUNK_SIZE_MESSAGE_LENGTH = 5;
 export const CLIENT_ID_MESSAGE_LENGTH = 32;

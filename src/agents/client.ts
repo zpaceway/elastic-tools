@@ -44,9 +44,10 @@ export const createClient = ({
     };
 
     tunnelSocket.on("connect", () => {
-      tunnelSocket.write(`${client.key}${countryCode}`, (err) => {
-        if (err) return tunnelSocket.end();
-      });
+      tunnelSocket.write(
+        `${client.key}${countryCode}`,
+        (err) => err && tunnelSocket.end()
+      );
       clientSocket.once("data", (data) => {
         const { method, fullUrl } = parseHttp(data);
         logger.info(`---CLIENT--- ${method} ${fullUrl}`);
@@ -56,9 +57,7 @@ export const createClient = ({
             key: client.key,
           });
           inTcpChunks(encrypted).forEach((chunk) =>
-            tunnelSocket.write(chunk, (err) => {
-              if (err) return tunnelSocket.end();
-            })
+            tunnelSocket.write(chunk, (err) => err && tunnelSocket.end())
           );
         });
         clientSocket.emit("data", data);
@@ -70,9 +69,7 @@ export const createClient = ({
           data,
           key: client.key,
           onDecrypted: (decrypted) => {
-            clientSocket.write(decrypted, (err) => {
-              if (err) return clientSocket.end();
-            });
+            clientSocket.write(decrypted, (err) => err && clientSocket.end());
           },
         });
       });

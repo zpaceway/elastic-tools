@@ -18,6 +18,6 @@ const client = createClient({
   username: "alexandro",
   password: "123456",
   tunnelHost: "elastic.zpaceway.com",
-  countryCode: "US",
+  countryCode: "EC",
 });
 client.listen();

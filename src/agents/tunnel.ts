@@ -5,6 +5,7 @@ import {
   CLIENTS_TUNNEL_PORT,
   COUNTRY_CODES,
   CountryCode,
+  KEEP_ALIVE_INTERVAL,
   LEFT_MESSAGE_PADDING,
   PROXIES_TUNNEL_PORT,
 } from "../core/constants";
@@ -55,6 +56,10 @@ export const createTunnel = ({
       logger.info(
         `Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`
       );
+
+      setInterval(() => {
+        proxySocket.write(Buffer.from([]));
+      }, KEEP_ALIVE_INTERVAL);
     });
   };
 
@@ -109,9 +114,7 @@ export const createTunnel = ({
           data,
           key: client.key,
           onDecrypted: (decrypted) => {
-            proxySocket.write(decrypted, (err) => {
-              if (err) return proxySocket.end();
-            });
+            proxySocket.write(decrypted, (err) => err && proxySocket.end());
           },
         });
       });
@@ -124,9 +127,7 @@ export const createTunnel = ({
           key: client.key,
         });
         inTcpChunks(encrypted).forEach((chunk) =>
-          clientSocket.write(chunk, (err) => {
-            if (err) return clientSocket.end();
-          })
+          clientSocket.write(chunk, (err) => err && clientSocket.end())
         );
       });
 
