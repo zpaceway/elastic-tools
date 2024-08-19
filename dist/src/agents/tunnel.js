@@ -42,6 +42,9 @@ const createTunnel = ({ username, password, }) => {
             logger_1.default.log(`New proxy client ${client.username} connected from ${proxyCountryCode}`);
             availableProxiesByCountry[proxyCountryCode].push(proxySocket);
             logger_1.default.info(`Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`);
+            setInterval(() => {
+                proxySocket.write(Buffer.from([]));
+            }, constants_1.KEEP_ALIVE_INTERVAL);
         }));
     });
     const onClientConnection = (clientSocket) => __awaiter(void 0, void 0, void 0, function* () {
@@ -75,10 +78,7 @@ const createTunnel = ({ username, password, }) => {
                     data,
                     key: client.key,
                     onDecrypted: (decrypted) => {
-                        proxySocket.write(decrypted, (err) => {
-                            if (err)
-                                return proxySocket.end();
-                        });
+                        proxySocket.write(decrypted, (err) => err && proxySocket.end());
                     },
                 });
             });
@@ -89,10 +89,7 @@ const createTunnel = ({ username, password, }) => {
                     buffer: data,
                     key: client.key,
                 });
-                (0, crypto_1.inTcpChunks)(encrypted).forEach((chunk) => clientSocket.write(chunk, (err) => {
-                    if (err)
-                        return clientSocket.end();
-                }));
+                (0, crypto_1.inTcpChunks)(encrypted).forEach((chunk) => clientSocket.write(chunk, (err) => err && clientSocket.end()));
             });
             clientSocket.on("end", () => proxySocket.end());
             proxySocket.on("end", () => clientSocket.end());

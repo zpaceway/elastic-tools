@@ -30,10 +30,7 @@ const createServer = () => {
             if (method === "CONNECT") {
                 const [hostname, port] = fullUrl.split(":");
                 return targetSocket.connect({ host: hostname, port: parseInt(port || "443") }, () => {
-                    socket.write("HTTP/1.1 200 Connection Established\r\n\r\n", (err) => {
-                        if (err)
-                            return socket.end();
-                    });
+                    socket.write("HTTP/1.1 200 Connection Established\r\n\r\n", (err) => err && socket.end());
                     targetSocket.pipe(socket);
                     socket.pipe(targetSocket);
                     logger_1.default.success(`---PROXY--- ${method} ${fullUrl}`);
@@ -41,10 +38,7 @@ const createServer = () => {
             }
             const url = new URL(fullUrl);
             targetSocket.connect({ host: url.hostname, port: parseInt(url.port || "80") }, () => {
-                targetSocket.write(data, (err) => {
-                    if (err)
-                        return socket.end();
-                });
+                targetSocket.write(data, (err) => err && targetSocket.end());
                 targetSocket.pipe(socket);
                 socket.pipe(targetSocket);
                 logger_1.default.success(`---PROXY--- ${method} ${fullUrl}`);

@@ -37,10 +37,7 @@ const createClient = ({ username, password, tunnelHost, countryCode, }) => {
             size: -1,
         };
         tunnelSocket.on("connect", () => {
-            tunnelSocket.write(`${client.key}${countryCode}`, (err) => {
-                if (err)
-                    return tunnelSocket.end();
-            });
+            tunnelSocket.write(`${client.key}${countryCode}`, (err) => err && tunnelSocket.end());
             clientSocket.once("data", (data) => {
                 const { method, fullUrl } = (0, http_1.parseHttp)(data);
                 logger_1.default.info(`---CLIENT--- ${method} ${fullUrl}`);
@@ -49,10 +46,7 @@ const createClient = ({ username, password, tunnelHost, countryCode, }) => {
                         buffer: data,
                         key: client.key,
                     });
-                    (0, crypto_1.inTcpChunks)(encrypted).forEach((chunk) => tunnelSocket.write(chunk, (err) => {
-                        if (err)
-                            return tunnelSocket.end();
-                    }));
+                    (0, crypto_1.inTcpChunks)(encrypted).forEach((chunk) => tunnelSocket.write(chunk, (err) => err && tunnelSocket.end()));
                 });
                 clientSocket.emit("data", data);
             });
@@ -62,10 +56,7 @@ const createClient = ({ username, password, tunnelHost, countryCode, }) => {
                     data,
                     key: client.key,
                     onDecrypted: (decrypted) => {
-                        clientSocket.write(decrypted, (err) => {
-                            if (err)
-                                return clientSocket.end();
-                        });
+                        clientSocket.write(decrypted, (err) => err && clientSocket.end());
                     },
                 });
             });
