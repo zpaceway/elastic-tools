@@ -60,6 +60,8 @@ const createJumpers = (_a) => __awaiter(void 0, [_a], void 0, function* ({ platf
             tunnelSocket.on(event, onUnavailable);
             proxySocket.on(event, onUnavailable);
         });
+        tunnelSocket.on("error", () => tunnelSocket.end());
+        proxySocket.on("error", () => proxySocket.end());
         tunnelSocket.pipe(proxySocket, { end: true });
         proxySocket.pipe(tunnelSocket, { end: true });
     };
