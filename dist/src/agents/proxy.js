@@ -21,6 +21,7 @@ const logger_1 = __importDefault(require("../core/logger"));
 const assert_1 = __importDefault(require("assert"));
 const http_1 = require("../core/http");
 const rxjs_1 = require("rxjs");
+const datetime_1 = require("../core/datetime");
 class JumpersManager {
     constructor({ platformConnector, tunnelHost, minimumAvailability, }) {
         this.jumpers$ = new rxjs_1.BehaviorSubject([]);
@@ -47,8 +48,7 @@ class JumpersManager {
     createJumper(client) {
         return __awaiter(this, void 0, void 0, function* () {
             const jumper = Symbol();
-            const createdAt = new Date();
-            const fiveMinutesAfterCreation = new Date(createdAt.getTime() + 1000 * 60 * 5);
+            const fiveMinutesAfterCreation = (0, datetime_1.getFutureDate)(1000 * 60 * 5);
             const tunnelSocket = net_1.default.createConnection({
                 allowHalfOpen: false,
                 keepAlive: true,
@@ -60,16 +60,13 @@ class JumpersManager {
                     tunnelSocket.end();
                     return clearInterval(interval);
                 }
-                tunnelSocket.write(Buffer.from([]), (err) => {
-                    if (err) {
-                        tunnelSocket.end();
-                        clearInterval(interval);
-                    }
-                });
             }, constants_1.KEEP_ALIVE_INTERVAL);
             this.jumpers$.next([...this.jumpers$.value, jumper]);
             ["error", "data", "end", "close", "timeout"].forEach((event) => {
-                tunnelSocket.once(event, () => this.jumpers$.next(this.jumpers$.value.filter((_jumper) => _jumper !== jumper)));
+                tunnelSocket.once(event, () => {
+                    clearInterval(interval);
+                    this.jumpers$.next(this.jumpers$.value.filter((_jumper) => _jumper !== jumper));
+                });
             });
             tunnelSocket.write(client.key, (err) => err && tunnelSocket.end());
             tunnelSocket.on("error", () => tunnelSocket.end());
