@@ -52,18 +52,20 @@ const createJumpers = (_a) => __awaiter(void 0, [_a], void 0, function* ({ platf
                 createJumper();
             }
         };
+        ["error", "data", "end", "close", "timeout"].map((event) => {
+            tunnelSocket.on(event, onUnavailable);
+            proxySocket.on(event, onUnavailable);
+        });
         tunnelSocket.write(client.key, (err) => {
             if (err)
                 return tunnelSocket.end();
         });
-        ["data", "end", "close", "timeout"].map((event) => {
-            tunnelSocket.on(event, onUnavailable);
-            proxySocket.on(event, onUnavailable);
-        });
         tunnelSocket.on("error", () => tunnelSocket.end());
         proxySocket.on("error", () => proxySocket.end());
-        tunnelSocket.pipe(proxySocket, { end: true });
-        proxySocket.pipe(tunnelSocket, { end: true });
+        tunnelSocket.on("end", () => proxySocket.end());
+        proxySocket.on("end", () => tunnelSocket.end());
+        tunnelSocket.pipe(proxySocket);
+        proxySocket.pipe(tunnelSocket);
     };
     createJumper();
 });
