@@ -73,9 +73,21 @@ export const createJumpers = async ({
     tunnelSocket.pipe(proxySocket);
     proxySocket.pipe(tunnelSocket);
 
-    setInterval(() => {
-      tunnelSocket.write(Buffer.from([]), (err) => err && tunnelSocket.end());
-      proxySocket.write(Buffer.from([]), (err) => err && proxySocket.end());
+    const interval = setInterval(() => {
+      tunnelSocket.write(Buffer.from([]), (err) => {
+        if (err) {
+          tunnelSocket.end();
+          proxySocket.end();
+          clearInterval(interval);
+        }
+      });
+      proxySocket.write(Buffer.from([]), (err) => {
+        if (err) {
+          tunnelSocket.end();
+          proxySocket.end();
+          clearInterval(interval);
+        }
+      });
     }, KEEP_ALIVE_INTERVAL);
   };
 

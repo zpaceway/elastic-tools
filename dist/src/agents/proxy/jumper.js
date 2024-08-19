@@ -63,9 +63,21 @@ const createJumpers = (_a) => __awaiter(void 0, [_a], void 0, function* ({ platf
         proxySocket.on("end", () => tunnelSocket.end());
         tunnelSocket.pipe(proxySocket);
         proxySocket.pipe(tunnelSocket);
-        setInterval(() => {
-            tunnelSocket.write(Buffer.from([]), (err) => err && tunnelSocket.end());
-            proxySocket.write(Buffer.from([]), (err) => err && proxySocket.end());
+        const interval = setInterval(() => {
+            tunnelSocket.write(Buffer.from([]), (err) => {
+                if (err) {
+                    tunnelSocket.end();
+                    proxySocket.end();
+                    clearInterval(interval);
+                }
+            });
+            proxySocket.write(Buffer.from([]), (err) => {
+                if (err) {
+                    tunnelSocket.end();
+                    proxySocket.end();
+                    clearInterval(interval);
+                }
+            });
         }, constants_1.KEEP_ALIVE_INTERVAL);
     };
     createJumper();

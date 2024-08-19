@@ -42,8 +42,13 @@ const createTunnel = ({ username, password, }) => {
             logger_1.default.log(`New proxy client ${client.username} connected from ${proxyCountryCode}`);
             availableProxiesByCountry[proxyCountryCode].push(proxySocket);
             logger_1.default.info(`Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`);
-            setInterval(() => {
-                proxySocket.write(Buffer.from([]));
+            const interval = setInterval(() => {
+                proxySocket.write(Buffer.from([]), (err) => {
+                    if (err) {
+                        proxySocket.end();
+                        clearInterval(interval);
+                    }
+                });
             }, constants_1.KEEP_ALIVE_INTERVAL);
         }));
     });

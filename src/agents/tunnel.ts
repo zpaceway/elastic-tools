@@ -57,8 +57,13 @@ export const createTunnel = ({
         `Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`
       );
 
-      setInterval(() => {
-        proxySocket.write(Buffer.from([]));
+      const interval = setInterval(() => {
+        proxySocket.write(Buffer.from([]), (err) => {
+          if (err) {
+            proxySocket.end();
+            clearInterval(interval);
+          }
+        });
       }, KEEP_ALIVE_INTERVAL);
     });
   };
