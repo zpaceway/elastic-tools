@@ -4,12 +4,8 @@ import WebSocket from "ws";
 import http from "http";
 
 const options = {
-  key: fs.readFileSync(
-    "/etc/letsencrypt/live/shiptunnel.zpaceway.com-0001/privkey.pem"
-  ),
-  cert: fs.readFileSync(
-    "/etc/letsencrypt/live/shiptunnel.zpaceway.com-0001/fullchain.pem"
-  ),
+  // key: fs.readFileSync(),
+  // cert: fs.readFileSync(),
 };
 
 const server = http.createServer();
