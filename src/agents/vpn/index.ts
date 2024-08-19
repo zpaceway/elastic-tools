@@ -40,5 +40,5 @@ const tlsServer = tls.createServer({}, (socket) => {
 });
 
 tlsServer.listen(3333, () => {
-  console.log("VPN server listening on port 443");
+  console.log("VPN server listening on port 3333");
 });
