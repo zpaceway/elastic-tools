@@ -1,4 +1,7 @@
-import { PlatformConnector } from "../core/platform";
+import {
+  platformClient as PlatformClient,
+  PlatformConnector,
+} from "../core/platform";
 import net from "net";
 import { getCountryCodeFromIpAddress } from "../core/location";
 import { PROXIES_TUNNEL_PORT, KEEP_ALIVE_INTERVAL } from "../core/constants";
@@ -6,45 +9,59 @@ import logger from "../core/logger";
 import assert from "assert";
 import { parseHttp } from "../core/http";
 
-export const createJumpers = async ({
-  platformConnector,
-  tunnelHost,
-  minimumAvailability,
-}: {
-  platformConnector: PlatformConnector;
+class JumpersManager {
+  jumpers: Symbol[];
   tunnelHost: string;
+  platformConnector: PlatformConnector;
   minimumAvailability: number;
-}) => {
-  const client = await platformConnector.getClient();
-  assert(client);
 
-  const countryCode = await getCountryCodeFromIpAddress();
-  if (!countryCode) return logger.error("Unsupported Country Code");
+  constructor({
+    platformConnector,
+    tunnelHost,
+    minimumAvailability,
+  }: {
+    platformConnector: PlatformConnector;
+    tunnelHost: string;
+    minimumAvailability: number;
+  }) {
+    this.jumpers = [];
+    this.platformConnector = platformConnector;
+    this.tunnelHost = tunnelHost;
+    this.minimumAvailability = minimumAvailability;
+  }
 
-  const availableJumpers: Symbol[] = [];
+  async initialize() {
+    const [client, countryCode] = await Promise.all([
+      this.platformConnector.getClient(),
+      getCountryCodeFromIpAddress(),
+    ]);
+    assert(client);
+    assert(countryCode);
 
-  const createJumper = () => {
+    return client;
+  }
+
+  async createJumper() {
+    const client = await this.initialize();
     const jumper = Symbol();
     const tunnelSocket = net.createConnection({
       allowHalfOpen: false,
       keepAlive: true,
-      host: tunnelHost,
+      host: this.tunnelHost,
       port: PROXIES_TUNNEL_PORT,
     });
 
-    availableJumpers.push(jumper);
-    if (availableJumpers.length < minimumAvailability) {
-      createJumper();
+    this.jumpers.push(jumper);
+    if (this.jumpers.length < this.minimumAvailability) {
+      this.createJumper();
     }
 
     const onUnavailable = () => {
-      const indexOf = availableJumpers.findIndex(
-        (_jumper) => _jumper === jumper
-      );
+      const indexOf = this.jumpers.findIndex((_jumper) => _jumper === jumper);
       if (indexOf < 0) return;
-      availableJumpers.splice(indexOf, 1);
-      if (availableJumpers.length < 10) {
-        createJumper();
+      this.jumpers.splice(indexOf, 1);
+      if (this.jumpers.length < 10) {
+        this.createJumper();
       }
     };
 
@@ -115,10 +132,8 @@ export const createJumpers = async ({
         }
       });
     }, KEEP_ALIVE_INTERVAL);
-  };
-
-  createJumper();
-};
+  }
+}
 
 export const createProxy = ({
   username,
@@ -132,14 +147,15 @@ export const createProxy = ({
   minimumAvailability: number;
 }) => {
   const platformConnector = new PlatformConnector({ username, password });
+  const jumpersManager = new JumpersManager({
+    platformConnector,
+    minimumAvailability,
+    tunnelHost,
+  });
 
   return {
     listen: () => {
-      createJumpers({
-        platformConnector,
-        tunnelHost,
-        minimumAvailability,
-      });
+      jumpersManager.createJumper();
     },
   };
 };
