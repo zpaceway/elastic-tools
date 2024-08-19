@@ -5,7 +5,6 @@ import {
   CLIENTS_TUNNEL_PORT,
   COUNTRY_CODES,
   CountryCode,
-  KEEP_ALIVE_INTERVAL,
   LEFT_MESSAGE_PADDING,
   PROXIES_TUNNEL_PORT,
 } from "../core/constants";
@@ -57,23 +56,14 @@ export const createTunnel = ({
         `Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`
       );
 
-      const createdAt = new Date();
-      const fiveMinutesAfterCreation = new Date(
-        createdAt.getTime() + 1000 * 60 * 5
-      );
-
-      const interval = setInterval(() => {
-        if (fiveMinutesAfterCreation < new Date()) {
-          proxySocket.end();
-          return clearInterval(interval);
-        }
-        proxySocket.write(Buffer.from([]), (err) => {
-          if (err) {
-            proxySocket.end();
-            clearInterval(interval);
-          }
+      ["error", "data", "end", "close", "timeout"].forEach((event) => {
+        proxySocket.once(event, () => {
+          availableProxiesByCountry[proxyCountryCode] =
+            availableProxiesByCountry[proxyCountryCode].filter(
+              (_proxy) => _proxy !== proxySocket
+            );
         });
-      }, KEEP_ALIVE_INTERVAL);
+      });
     });
   };
 

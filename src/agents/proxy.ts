@@ -9,6 +9,7 @@ import logger from "../core/logger";
 import assert from "assert";
 import { parseHttp } from "../core/http";
 import { BehaviorSubject } from "rxjs";
+import { getFutureDate } from "../core/datetime";
 
 class JumpersManager {
   jumpers$: BehaviorSubject<Symbol[]>;
@@ -49,10 +50,7 @@ class JumpersManager {
 
   async createJumper(client: PlatformClient) {
     const jumper = Symbol();
-    const createdAt = new Date();
-    const fiveMinutesAfterCreation = new Date(
-      createdAt.getTime() + 1000 * 60 * 5
-    );
+    const fiveMinutesAfterCreation = getFutureDate(1000 * 60 * 5);
     const tunnelSocket = net.createConnection({
       allowHalfOpen: false,
       keepAlive: true,
@@ -65,22 +63,17 @@ class JumpersManager {
         tunnelSocket.end();
         return clearInterval(interval);
       }
-      tunnelSocket.write(Buffer.from([]), (err) => {
-        if (err) {
-          tunnelSocket.end();
-          clearInterval(interval);
-        }
-      });
     }, KEEP_ALIVE_INTERVAL);
 
     this.jumpers$.next([...this.jumpers$.value, jumper]);
 
     ["error", "data", "end", "close", "timeout"].forEach((event) => {
-      tunnelSocket.once(event, () =>
+      tunnelSocket.once(event, () => {
+        clearInterval(interval);
         this.jumpers$.next(
           this.jumpers$.value.filter((_jumper) => _jumper !== jumper)
-        )
-      );
+        );
+      });
     });
 
     tunnelSocket.write(client.key, (err) => err && tunnelSocket.end());
