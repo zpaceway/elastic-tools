@@ -43,11 +43,11 @@ const createServer = () => {
             }
             const url = new URL(fullUrl);
             targetSocket.connect({ host: url.hostname, port: parseInt(url.port || "80") }, () => {
-                targetSocket.pipe(socket, { end: true });
                 targetSocket.write(data, (err) => {
                     if (err)
                         return socket.end();
                 });
+                targetSocket.pipe(socket, { end: true });
                 socket.pipe(targetSocket, { end: true });
                 logger_1.default.success(`---PROXY--- ${method} ${fullUrl}`);
             });
