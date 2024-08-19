@@ -28,13 +28,13 @@ const createJumpers = (_a) => __awaiter(void 0, [_a], void 0, function* ({ platf
     const createJumper = () => {
         const jumper = Symbol();
         const tunnelSocket = net_1.default.createConnection({
-            allowHalfOpen: true,
+            allowHalfOpen: false,
             keepAlive: true,
             host: tunnelHost,
             port: constants_1.PROXIES_TUNNEL_PORT,
         });
         const proxySocket = net_1.default.createConnection({
-            allowHalfOpen: true,
+            allowHalfOpen: false,
             keepAlive: true,
             host: "127.0.0.1",
             port: constants_1.PROXY_SERVER_PORT,

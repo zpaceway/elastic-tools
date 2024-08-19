@@ -8,7 +8,7 @@ const net_1 = __importDefault(require("net"));
 const logger_1 = __importDefault(require("../../core/logger"));
 const http_1 = require("../../core/http");
 const createServer = () => {
-    const server = net_1.default.createServer({ allowHalfOpen: true, keepAlive: true }, (socket) => {
+    const server = net_1.default.createServer({ allowHalfOpen: false, keepAlive: true }, (socket) => {
         socket.once("data", (data) => {
             const { method, fullUrl } = (0, http_1.parseHttp)(data);
             if (!method || !fullUrl) {

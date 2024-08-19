@@ -25,14 +25,14 @@ export const createJumpers = async ({
   const createJumper = () => {
     const jumper = Symbol();
     const tunnelSocket = net.createConnection({
-      allowHalfOpen: true,
+      allowHalfOpen: false,
       keepAlive: true,
       host: tunnelHost,
       port: PROXIES_TUNNEL_PORT,
     });
 
     const proxySocket = net.createConnection({
-      allowHalfOpen: true,
+      allowHalfOpen: false,
       keepAlive: true,
       host: "127.0.0.1",
       port: PROXY_SERVER_PORT,

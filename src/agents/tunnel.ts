@@ -138,11 +138,11 @@ export const createTunnel = ({
   };
 
   const clientsServerTunnel = net.createServer({
-    allowHalfOpen: true,
+    allowHalfOpen: false,
     keepAlive: true,
   });
   const proxiesServerTunnel = net.createServer({
-    allowHalfOpen: true,
+    allowHalfOpen: false,
     keepAlive: true,
   });
 

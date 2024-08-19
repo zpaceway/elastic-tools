@@ -4,7 +4,7 @@ import { parseHttp } from "../../core/http";
 
 export const createServer = () => {
   const server = net.createServer(
-    { allowHalfOpen: true, keepAlive: true },
+    { allowHalfOpen: false, keepAlive: true },
     (socket) => {
       socket.once("data", (data) => {
         const { method, fullUrl } = parseHttp(data);

@@ -101,11 +101,11 @@ const createTunnel = ({ username, password, }) => {
         });
     });
     const clientsServerTunnel = net_1.default.createServer({
-        allowHalfOpen: true,
+        allowHalfOpen: false,
         keepAlive: true,
     });
     const proxiesServerTunnel = net_1.default.createServer({
-        allowHalfOpen: true,
+        allowHalfOpen: false,
         keepAlive: true,
     });
     clientsServerTunnel.on("connection", onClientConnection);
