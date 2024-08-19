@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createProxy = void 0;
 const server_1 = require("./server");
 const jumper_1 = require("./jumper");
-const constants_1 = require("../constants");
+const constants_1 = require("../../constants");
 const createProxy = ({ tunnelHost, minimumAvailability, }) => {
     const server = (0, server_1.createServer)();
     return {

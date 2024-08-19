@@ -1,5 +1,5 @@
-import { createProxy } from "./proxy";
-import { createTunnel } from "./tunnel";
-import { createClient } from "./client";
+import { createProxy } from "./agents/proxy";
+import { createTunnel } from "./agents/tunnel";
+import { createClient } from "./agents/client";
 
 export { createTunnel, createProxy, createClient };

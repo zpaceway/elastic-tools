@@ -9,11 +9,12 @@ export declare const decryptTcpChunk: ({ buffer, key, }: {
     key: Buffer;
 }) => Buffer;
 export declare const inTcpChunks: (data: Buffer) => Buffer[];
-export declare const handleIncommingEncryptedTcpChunk: ({ sweeper, data, onDecrypted, }: {
+export declare const handleIncommingEncryptedTcpChunk: ({ sweeper, data, key, onDecrypted, }: {
     sweeper: {
         buffer: Buffer;
         size: number;
     };
     data: Buffer;
+    key: Buffer;
     onDecrypted: (decrypted: Buffer) => void;
 }) => void;

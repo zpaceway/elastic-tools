@@ -14,13 +14,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createClient = void 0;
 const net_1 = __importDefault(require("net"));
-const constants_1 = require("./constants");
-const crypto_1 = require("./crypto");
-const logger_1 = __importDefault(require("./logger"));
-const createClient = ({ tunnelHost, countryCode, }) => {
+const constants_1 = require("../constants");
+const crypto_1 = require("../crypto");
+const logger_1 = __importDefault(require("../logger"));
+const platform_1 = require("../platform");
+const assert_1 = __importDefault(require("assert"));
+const createClient = ({ username, password, tunnelHost, countryCode, }) => {
     logger_1.default.log(`Client Server will proxy encrypted packets to ${tunnelHost}:`);
+    const platformConnector = new platform_1.PlatformConnector({ username, password });
     const onConnect = (clientSocket) => __awaiter(void 0, void 0, void 0, function* () {
-        const tunnelSocket = net_1.default.connect({
+        const client = yield platformConnector.getClient();
+        (0, assert_1.default)(client);
+        const tunnelSocket = net_1.default.createConnection({
             allowHalfOpen: true,
             keepAlive: true,
             host: tunnelHost,
@@ -30,14 +35,12 @@ const createClient = ({ tunnelHost, countryCode, }) => {
             buffer: Buffer.from([]),
             size: -1,
         };
-        clientSocket.on("end", tunnelSocket.end);
-        tunnelSocket.on("end", clientSocket.end);
         tunnelSocket.on("connect", () => {
-            tunnelSocket.write(countryCode);
+            tunnelSocket.write(`${client.id}${countryCode}`);
             clientSocket.on("data", (data) => {
                 const encrypted = (0, crypto_1.encryptTcpChunk)({
                     buffer: data,
-                    key: constants_1.PUBLIC_KEY,
+                    key: client.encryptionKey,
                 });
                 (0, crypto_1.inTcpChunks)(encrypted).forEach((chunk) => tunnelSocket.write(chunk));
             });
@@ -45,6 +48,7 @@ const createClient = ({ tunnelHost, countryCode, }) => {
                 (0, crypto_1.handleIncommingEncryptedTcpChunk)({
                     sweeper,
                     data,
+                    key: client.encryptionKey,
                     onDecrypted: (decrypted) => {
                         clientSocket.write(decrypted, (err) => {
                             if (!err)
@@ -55,12 +59,10 @@ const createClient = ({ tunnelHost, countryCode, }) => {
                 });
             });
         });
-        tunnelSocket.on("error", (err) => {
-            clientSocket.write("HTTP/1.1 500 Internal Server Error\r\n" +
-                "Content-Type: text/plain\r\n" +
-                "\r\n");
-            clientSocket.end(`Error: ${err.message}`);
-        });
+        clientSocket.on("end", () => tunnelSocket.end());
+        tunnelSocket.on("end", () => clientSocket.end());
+        clientSocket.on("error", () => clientSocket.end());
+        tunnelSocket.on("error", () => tunnelSocket.end());
     });
     const clientServer = net_1.default.createServer({
         allowHalfOpen: true,

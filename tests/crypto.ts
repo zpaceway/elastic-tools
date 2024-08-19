@@ -1,4 +1,5 @@
-import { PUBLIC_KEY } from "../src/constants";
+import crypto from "crypto";
+
 import {
   compressBuffer,
   decompressBuffer,
@@ -6,7 +7,7 @@ import {
   encryptTcpChunk,
 } from "../src/crypto";
 
-const key = PUBLIC_KEY;
+const key = crypto.createHash("sha256").update("justakey").digest();
 const message = Buffer.from("Hello World");
 
 const compressed = compressBuffer(message);

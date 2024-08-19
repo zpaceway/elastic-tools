@@ -1,11 +1,6 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.COUNTRY_CODES = exports.PROXIES_TUNNEL_PORT = exports.CLIENTS_TUNNEL_PORT = exports.CLIENT_SERVER_PORT = exports.PROXY_SERVER_PORT = exports.PUBLIC_KEY = void 0;
-const crypto_1 = __importDefault(require("crypto"));
-exports.PUBLIC_KEY = crypto_1.default.createHash("sha256").update("qwerty").digest();
+exports.LEFT_MESSAGE_PADDING = exports.COUNTRY_CODE_MESSAGE_LENGTH = exports.CLIENT_ID_MESSAGE_LENGTH = exports.TCP_CHUNK_SIZE_MESSAGE_LENGTH = exports.MAX_TCP_CHUNK_SIZE = exports.COUNTRY_CODES = exports.PROXIES_TUNNEL_PORT = exports.CLIENTS_TUNNEL_PORT = exports.CLIENT_SERVER_PORT = exports.PROXY_SERVER_PORT = void 0;
 exports.PROXY_SERVER_PORT = 53503;
 exports.CLIENT_SERVER_PORT = 53504;
 exports.CLIENTS_TUNNEL_PORT = 53505;
@@ -261,3 +256,8 @@ exports.COUNTRY_CODES = [
     "ZM",
     "ZW",
 ];
+exports.MAX_TCP_CHUNK_SIZE = 1400;
+exports.TCP_CHUNK_SIZE_MESSAGE_LENGTH = 5;
+exports.CLIENT_ID_MESSAGE_LENGTH = 36;
+exports.COUNTRY_CODE_MESSAGE_LENGTH = 2;
+exports.LEFT_MESSAGE_PADDING = exports.CLIENT_ID_MESSAGE_LENGTH + exports.COUNTRY_CODE_MESSAGE_LENGTH;

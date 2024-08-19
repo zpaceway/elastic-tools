@@ -1,6 +1,6 @@
 import { createServer } from "./server";
 import { createJumpers } from "./jumper";
-import { PROXY_SERVER_PORT } from "../constants";
+import { PROXY_SERVER_PORT } from "../../constants";
 
 export const createProxy = ({
   tunnelHost,

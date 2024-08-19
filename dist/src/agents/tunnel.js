@@ -14,15 +14,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createTunnel = void 0;
 const net_1 = __importDefault(require("net"));
-const logger_1 = __importDefault(require("./logger"));
-const constants_1 = require("./constants");
-const crypto_1 = require("./crypto");
-const location_1 = require("./location");
-const createTunnel = () => {
+const logger_1 = __importDefault(require("../logger"));
+const constants_1 = require("../constants");
+const crypto_1 = require("../crypto");
+const location_1 = require("../location");
+const platform_1 = require("../platform");
+const createTunnel = ({ username, password, }) => {
+    logger_1.default.log(`Tunnel server created with username: ${username}`);
     const availableProxiesByCountry = constants_1.COUNTRY_CODES.reduce((acc, countryCode) => {
         acc[countryCode] = [];
         return acc;
     }, {});
+    const platformConnector = new platform_1.PlatformConnector({ username, password });
     const onProxyConnection = (proxySocket) => __awaiter(void 0, void 0, void 0, function* () {
         proxySocket.pause();
         const proxyCountryCode = yield (0, location_1.getCountryCodeFromIpAddress)(proxySocket.remoteAddress);
@@ -39,17 +42,22 @@ const createTunnel = () => {
     });
     const onClientConnection = (clientSocket) => __awaiter(void 0, void 0, void 0, function* () {
         clientSocket.pause();
-        const clientsCountryCode = yield (0, location_1.getCountryCodeFromIpAddress)(clientSocket.remoteAddress);
+        const clientCountryCode = yield (0, location_1.getCountryCodeFromIpAddress)(clientSocket.remoteAddress);
+        logger_1.default.log(`New client connected from ${clientCountryCode}`);
         clientSocket.resume();
         clientSocket.once("data", (data) => {
             clientSocket.pause();
-            const countryCode = data.subarray(0, 2).toString();
-            onCountryCode(countryCode, data.subarray(2));
+            const clientId = data.subarray(0, constants_1.CLIENT_ID_MESSAGE_LENGTH).toString();
+            const countryCode = data
+                .subarray(constants_1.CLIENT_ID_MESSAGE_LENGTH, constants_1.LEFT_MESSAGE_PADDING)
+                .toString();
+            onFirstDataChunk(clientId, countryCode, data.subarray(constants_1.LEFT_MESSAGE_PADDING));
         });
-        const onCountryCode = (countryCode, chunk) => {
-            logger_1.default.log(`New client connected to ${countryCode}`);
+        const onFirstDataChunk = (clientId, countryCode, chunk) => __awaiter(void 0, void 0, void 0, function* () {
+            logger_1.default.log(`New client ${clientId} connected to ${countryCode}`);
+            const client = yield platformConnector.getClient(clientId);
             const proxySocket = availableProxiesByCountry[countryCode].pop();
-            if (!proxySocket) {
+            if (!proxySocket || !client) {
                 clientSocket.write("HTTP/1.1 500 Internal Server Error\r\n" +
                     "Content-Type: text/plain\r\n" +
                     "\r\n");
@@ -64,6 +72,7 @@ const createTunnel = () => {
                 (0, crypto_1.handleIncommingEncryptedTcpChunk)({
                     sweeper,
                     data,
+                    key: client.encryptionKey,
                     onDecrypted: (decrypted) => {
                         proxySocket.write(decrypted, (err) => {
                             if (!err)
@@ -78,19 +87,15 @@ const createTunnel = () => {
             proxySocket.on("data", (data) => {
                 const encrypted = (0, crypto_1.encryptTcpChunk)({
                     buffer: data,
-                    key: constants_1.PUBLIC_KEY,
+                    key: client.encryptionKey,
                 });
                 (0, crypto_1.inTcpChunks)(encrypted).forEach((chunk) => clientSocket.write(chunk));
             });
-            clientSocket.on("end", proxySocket.end);
-            proxySocket.on("end", clientSocket.end);
-            proxySocket.on("error", (err) => {
-                clientSocket.write("HTTP/1.1 500 Internal Server Error\r\n" +
-                    "Content-Type: text/plain\r\n" +
-                    "\r\n");
-                clientSocket.end(`Error: ${err.message}`);
-            });
-        };
+            clientSocket.on("end", () => proxySocket.end());
+            proxySocket.on("end", () => clientSocket.end());
+            clientSocket.on("error", () => clientSocket.end());
+            proxySocket.on("error", () => proxySocket.end());
+        });
     });
     const clientsServerTunnel = net_1.default.createServer({
         allowHalfOpen: true,

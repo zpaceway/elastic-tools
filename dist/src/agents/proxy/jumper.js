@@ -14,9 +14,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createJumpers = void 0;
 const net_1 = __importDefault(require("net"));
-const location_1 = require("../location");
-const constants_1 = require("../constants");
-const logger_1 = __importDefault(require("../logger"));
+const location_1 = require("../../location");
+const constants_1 = require("../../constants");
+const logger_1 = __importDefault(require("../../logger"));
 const createJumpers = (_a) => __awaiter(void 0, [_a], void 0, function* ({ tunnelHost, minimumAvailability, }) {
     const countryCode = yield (0, location_1.getCountryCodeFromIpAddress)();
     if (!countryCode)
@@ -24,13 +24,13 @@ const createJumpers = (_a) => __awaiter(void 0, [_a], void 0, function* ({ tunne
     const availableJumpers = [];
     const createJumper = () => {
         const jumper = Symbol();
-        const tunnelSocket = net_1.default.connect({
+        const tunnelSocket = net_1.default.createConnection({
             allowHalfOpen: true,
             keepAlive: true,
             host: tunnelHost,
             port: constants_1.PROXIES_TUNNEL_PORT,
         });
-        const proxySocket = net_1.default.connect({
+        const proxySocket = net_1.default.createConnection({
             allowHalfOpen: true,
             keepAlive: true,
             host: "127.0.0.1",

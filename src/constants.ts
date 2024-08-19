@@ -1,6 +1,3 @@
-import crypto from "crypto";
-
-export const PUBLIC_KEY = crypto.createHash("sha256").update("qwerty").digest();
 export const PROXY_SERVER_PORT = 53503;
 export const CLIENT_SERVER_PORT = 53504;
 export const CLIENTS_TUNNEL_PORT = 53505;
@@ -259,3 +256,10 @@ export const COUNTRY_CODES = [
 ] as const;
 
 export type CountryCode = (typeof COUNTRY_CODES)[number];
+
+export const MAX_TCP_CHUNK_SIZE = 1400;
+export const TCP_CHUNK_SIZE_MESSAGE_LENGTH = 5;
+export const CLIENT_ID_MESSAGE_LENGTH = 36;
+export const COUNTRY_CODE_MESSAGE_LENGTH = 2;
+export const LEFT_MESSAGE_PADDING =
+  CLIENT_ID_MESSAGE_LENGTH + COUNTRY_CODE_MESSAGE_LENGTH;

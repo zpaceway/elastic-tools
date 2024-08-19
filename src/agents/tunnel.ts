@@ -1,25 +1,35 @@
 import net from "net";
-import logger from "./logger";
+import logger from "../logger";
 import {
+  CLIENT_ID_MESSAGE_LENGTH,
   CLIENTS_TUNNEL_PORT,
   COUNTRY_CODES,
   CountryCode,
+  LEFT_MESSAGE_PADDING,
   PROXIES_TUNNEL_PORT,
-  PUBLIC_KEY,
-} from "./constants";
+} from "../constants";
 import {
   encryptTcpChunk,
   handleIncommingEncryptedTcpChunk,
   inTcpChunks,
-} from "./crypto";
-import { getCountryCodeFromIpAddress } from "./location";
+} from "../crypto";
+import { getCountryCodeFromIpAddress } from "../location";
+import { PlatformConnector } from "../platform";
 
-export const createTunnel = () => {
+export const createTunnel = ({
+  username,
+  password,
+}: {
+  username: string;
+  password: string;
+}) => {
+  logger.log(`Tunnel server created with username: ${username}`);
   const availableProxiesByCountry: Record<CountryCode, net.Socket[]> =
     COUNTRY_CODES.reduce((acc, countryCode) => {
       acc[countryCode] = [];
       return acc;
     }, {} as Record<CountryCode, net.Socket[]>);
+  const platformConnector = new PlatformConnector({ username, password });
 
   const onProxyConnection = async (proxySocket: net.Socket) => {
     proxySocket.pause();
@@ -46,22 +56,37 @@ export const createTunnel = () => {
 
   const onClientConnection = async (clientSocket: net.Socket) => {
     clientSocket.pause();
-    const clientsCountryCode = await getCountryCodeFromIpAddress(
+    const clientCountryCode = await getCountryCodeFromIpAddress(
       clientSocket.remoteAddress
     );
+    logger.log(`New client connected from ${clientCountryCode}`);
+
     clientSocket.resume();
 
     clientSocket.once("data", (data) => {
       clientSocket.pause();
-      const countryCode = data.subarray(0, 2).toString() as CountryCode;
-      onCountryCode(countryCode, data.subarray(2));
+      const clientId = data.subarray(0, CLIENT_ID_MESSAGE_LENGTH).toString();
+      const countryCode = data
+        .subarray(CLIENT_ID_MESSAGE_LENGTH, LEFT_MESSAGE_PADDING)
+        .toString() as CountryCode;
+
+      onFirstDataChunk(
+        clientId,
+        countryCode,
+        data.subarray(LEFT_MESSAGE_PADDING)
+      );
     });
 
-    const onCountryCode = (countryCode: CountryCode, chunk: Buffer) => {
-      logger.log(`New client connected to ${countryCode}`);
+    const onFirstDataChunk = async (
+      clientId: string,
+      countryCode: CountryCode,
+      chunk: Buffer
+    ) => {
+      logger.log(`New client ${clientId} connected to ${countryCode}`);
+      const client = await platformConnector.getClient(clientId);
       const proxySocket = availableProxiesByCountry[countryCode].pop();
 
-      if (!proxySocket) {
+      if (!proxySocket || !client) {
         clientSocket.write(
           "HTTP/1.1 500 Internal Server Error\r\n" +
             "Content-Type: text/plain\r\n" +
@@ -83,6 +108,7 @@ export const createTunnel = () => {
         handleIncommingEncryptedTcpChunk({
           sweeper,
           data,
+          key: client.encryptionKey,
           onDecrypted: (decrypted) => {
             proxySocket.write(decrypted, (err) => {
               if (!err) return;
@@ -97,22 +123,15 @@ export const createTunnel = () => {
       proxySocket.on("data", (data) => {
         const encrypted = encryptTcpChunk({
           buffer: data,
-          key: PUBLIC_KEY,
+          key: client.encryptionKey,
         });
         inTcpChunks(encrypted).forEach((chunk) => clientSocket.write(chunk));
       });
 
-      clientSocket.on("end", proxySocket.end);
-      proxySocket.on("end", clientSocket.end);
-
-      proxySocket.on("error", (err) => {
-        clientSocket.write(
-          "HTTP/1.1 500 Internal Server Error\r\n" +
-            "Content-Type: text/plain\r\n" +
-            "\r\n"
-        );
-        clientSocket.end(`Error: ${err.message}`);
-      });
+      clientSocket.on("end", () => proxySocket.end());
+      proxySocket.on("end", () => clientSocket.end());
+      clientSocket.on("error", () => clientSocket.end());
+      proxySocket.on("error", () => proxySocket.end());
     };
   };
 

@@ -3,25 +3,33 @@ import {
   CLIENT_SERVER_PORT,
   CLIENTS_TUNNEL_PORT,
   CountryCode,
-  PUBLIC_KEY,
-} from "./constants";
+} from "../constants";
 import {
   encryptTcpChunk,
   handleIncommingEncryptedTcpChunk,
   inTcpChunks,
-} from "./crypto";
-import logger from "./logger";
+} from "../crypto";
+import logger from "../logger";
+import { PlatformConnector } from "../platform";
+import assert from "assert";
 
 export const createClient = ({
+  username,
+  password,
   tunnelHost,
   countryCode,
 }: {
+  username: string;
+  password: string;
   tunnelHost: string;
   countryCode: CountryCode;
 }) => {
   logger.log(`Client Server will proxy encrypted packets to ${tunnelHost}:`);
+  const platformConnector = new PlatformConnector({ username, password });
 
   const onConnect = async (clientSocket: net.Socket) => {
+    const client = await platformConnector.getClient();
+    assert(client);
     const tunnelSocket = net.createConnection({
       allowHalfOpen: true,
       keepAlive: true,
@@ -34,14 +42,12 @@ export const createClient = ({
       size: -1,
     };
 
-    clientSocket.on("end", tunnelSocket.end);
-    tunnelSocket.on("end", clientSocket.end);
     tunnelSocket.on("connect", () => {
-      tunnelSocket.write(countryCode);
+      tunnelSocket.write(`${client.id}${countryCode}`);
       clientSocket.on("data", (data) => {
         const encrypted = encryptTcpChunk({
           buffer: data,
-          key: PUBLIC_KEY,
+          key: client.encryptionKey,
         });
         inTcpChunks(encrypted).forEach((chunk) => tunnelSocket.write(chunk));
       });
@@ -50,6 +56,7 @@ export const createClient = ({
         handleIncommingEncryptedTcpChunk({
           sweeper,
           data,
+          key: client.encryptionKey,
           onDecrypted: (decrypted) => {
             clientSocket.write(decrypted, (err) => {
               if (!err) return;
@@ -60,14 +67,10 @@ export const createClient = ({
       });
     });
 
-    tunnelSocket.on("error", (err) => {
-      clientSocket.write(
-        "HTTP/1.1 500 Internal Server Error\r\n" +
-          "Content-Type: text/plain\r\n" +
-          "\r\n"
-      );
-      clientSocket.end(`Error: ${err.message}`);
-    });
+    clientSocket.on("end", () => tunnelSocket.end());
+    tunnelSocket.on("end", () => clientSocket.end());
+    clientSocket.on("error", () => clientSocket.end());
+    tunnelSocket.on("error", () => tunnelSocket.end());
   };
 
   const clientServer = net.createServer({

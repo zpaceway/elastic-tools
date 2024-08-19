@@ -1,7 +1,7 @@
 import net from "net";
-import { getCountryCodeFromIpAddress } from "../location";
-import { PROXY_SERVER_PORT, PROXIES_TUNNEL_PORT } from "../constants";
-import logger from "../logger";
+import { getCountryCodeFromIpAddress } from "../../location";
+import { PROXY_SERVER_PORT, PROXIES_TUNNEL_PORT } from "../../constants";
+import logger from "../../logger";
 
 export const createJumpers = async ({
   tunnelHost,
