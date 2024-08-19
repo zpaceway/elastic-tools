@@ -22,10 +22,12 @@ export const createServer = () => {
           socket.end();
         });
         socket.on("error", (err) => {
-          logger.log(`Socket error: ${err.message}`);
+          logger.error(`---PROXY--- ${method} ${fullUrl} - ${err.message}`);
           targetSocket.end();
           socket.end();
         });
+        socket.on("end", () => targetSocket.end());
+        targetSocket.on("end", () => socket.end());
 
         logger.info(`---PROXY--- ${method} ${fullUrl}`);
 
@@ -35,7 +37,12 @@ export const createServer = () => {
           return targetSocket.connect(
             { host: hostname, port: parseInt(port || "443") },
             () => {
-              socket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+              socket.write(
+                "HTTP/1.1 200 Connection Established\r\n\r\n",
+                (err) => {
+                  if (err) return socket.end();
+                }
+              );
               targetSocket.pipe(socket, { end: true });
               socket.pipe(targetSocket, { end: true });
               logger.success(`---PROXY--- ${method} ${fullUrl}`);
@@ -49,7 +56,9 @@ export const createServer = () => {
           { host: url.hostname, port: parseInt(url.port || "80") },
           () => {
             targetSocket.pipe(socket, { end: true });
-            targetSocket.write(data);
+            targetSocket.write(data, (err) => {
+              if (err) return socket.end();
+            });
             socket.pipe(targetSocket, { end: true });
             logger.success(`---PROXY--- ${method} ${fullUrl}`);
           }

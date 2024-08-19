@@ -54,7 +54,9 @@ export const createJumpers = async ({
       }
     };
 
-    tunnelSocket.write(client.key);
+    tunnelSocket.write(client.key, (err) => {
+      if (err) return tunnelSocket.end();
+    });
 
     ["data", "end", "close", "timeout"].map((event) => {
       tunnelSocket.on(event, onUnavailable);

@@ -36,10 +36,8 @@ const createTunnel = ({ username, password, }) => {
             const proxyCountryCode = yield (0, location_1.getCountryCodeFromIpAddress)(proxySocket.remoteAddress);
             proxySocket.resume();
             if (!proxyCountryCode) {
-                proxySocket.write("HTTP/1.1 500 Internal Server Error\r\n" +
-                    "Content-Type: text/plain\r\n" +
-                    "\r\n");
-                return proxySocket.end(`Error: incorrect country code`);
+                logger_1.default.error("Country code not found in request");
+                return proxySocket.end();
             }
             logger_1.default.log(`New proxy client ${client.username} connected from ${proxyCountryCode}`);
             availableProxiesByCountry[proxyCountryCode].push(proxySocket);
@@ -62,10 +60,8 @@ const createTunnel = ({ username, password, }) => {
             const client = yield platformConnector.getClient(key);
             const proxySocket = availableProxiesByCountry[countryCode].pop();
             if (!proxySocket || !client) {
-                clientSocket.write("HTTP/1.1 500 Internal Server Error\r\n" +
-                    "Content-Type: text/plain\r\n" +
-                    "\r\n");
-                return clientSocket.end(`Error: unavailable`);
+                logger_1.default.error(`Client Unauthorized or no proxy in country ${countryCode} was found`);
+                return clientSocket.end();
             }
             logger_1.default.log(`New client ${client.username} connected from ${clientCountryCode} to ${countryCode}`);
             logger_1.default.log(`Available proxies ${availableProxiesByCountry[countryCode].length}`);
@@ -80,9 +76,8 @@ const createTunnel = ({ username, password, }) => {
                     key: client.key,
                     onDecrypted: (decrypted) => {
                         proxySocket.write(decrypted, (err) => {
-                            if (!err)
-                                return;
-                            proxySocket.end();
+                            if (err)
+                                return proxySocket.end();
                         });
                     },
                 });
@@ -94,7 +89,10 @@ const createTunnel = ({ username, password, }) => {
                     buffer: data,
                     key: client.key,
                 });
-                (0, crypto_1.inTcpChunks)(encrypted).forEach((chunk) => clientSocket.write(chunk));
+                (0, crypto_1.inTcpChunks)(encrypted).forEach((chunk) => clientSocket.write(chunk, (err) => {
+                    if (err)
+                        return clientSocket.end();
+                }));
             });
             clientSocket.on("end", () => proxySocket.end());
             proxySocket.on("end", () => clientSocket.end());

@@ -52,7 +52,10 @@ const createJumpers = (_a) => __awaiter(void 0, [_a], void 0, function* ({ platf
                 createJumper();
             }
         };
-        tunnelSocket.write(client.key);
+        tunnelSocket.write(client.key, (err) => {
+            if (err)
+                return tunnelSocket.end();
+        });
         ["data", "end", "close", "timeout"].map((event) => {
             tunnelSocket.on(event, onUnavailable);
             proxySocket.on(event, onUnavailable);

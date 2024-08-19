@@ -22,15 +22,20 @@ const createServer = () => {
                 socket.end();
             });
             socket.on("error", (err) => {
-                logger_1.default.log(`Socket error: ${err.message}`);
+                logger_1.default.error(`---PROXY--- ${method} ${fullUrl} - ${err.message}`);
                 targetSocket.end();
                 socket.end();
             });
+            socket.on("end", () => targetSocket.end());
+            targetSocket.on("end", () => socket.end());
             logger_1.default.info(`---PROXY--- ${method} ${fullUrl}`);
             if (method === "CONNECT") {
                 const [hostname, port] = fullUrl.split(":");
                 return targetSocket.connect({ host: hostname, port: parseInt(port || "443") }, () => {
-                    socket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+                    socket.write("HTTP/1.1 200 Connection Established\r\n\r\n", (err) => {
+                        if (err)
+                            return socket.end();
+                    });
                     targetSocket.pipe(socket, { end: true });
                     socket.pipe(targetSocket, { end: true });
                     logger_1.default.success(`---PROXY--- ${method} ${fullUrl}`);
@@ -39,7 +44,10 @@ const createServer = () => {
             const url = new URL(fullUrl);
             targetSocket.connect({ host: url.hostname, port: parseInt(url.port || "80") }, () => {
                 targetSocket.pipe(socket, { end: true });
-                targetSocket.write(data);
+                targetSocket.write(data, (err) => {
+                    if (err)
+                        return socket.end();
+                });
                 socket.pipe(targetSocket, { end: true });
                 logger_1.default.success(`---PROXY--- ${method} ${fullUrl}`);
             });
