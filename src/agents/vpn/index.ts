@@ -4,10 +4,10 @@ import WebSocket from "ws";
 import http from "http";
 import path from "path";
 
-const options = {
-  key: fs.readFileSync(path.join(__dirname, "server-key.pem")),
-  cert: fs.readFileSync(path.join(__dirname, "fullchain.pem")),
-};
+// const options = {
+//   key: fs.readFileSync(path.join(__dirname, "server-key.pem")),
+//   cert: fs.readFileSync(path.join(__dirname, "fullchain.pem")),
+// };
 
 const server = http.createServer();
 
@@ -33,12 +33,12 @@ server.on("upgrade", (request, socket, head) => {
   });
 });
 
-const tlsServer = tls.createServer(options, (socket) => {
+const tlsServer = tls.createServer({}, (socket) => {
   console.log("Client connected:", socket.remoteAddress);
 
   server.emit("connection", socket);
 });
 
-tlsServer.listen(443, () => {
+tlsServer.listen(3333, () => {
   console.log("VPN server listening on port 443");
 });
