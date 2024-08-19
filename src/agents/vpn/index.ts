@@ -2,11 +2,14 @@ import fs from "fs";
 import tls from "tls";
 import WebSocket from "ws";
 import http from "http";
-import path from "path";
 
 const options = {
-  key: "/etc/letsencrypt/live/shiptunnel.zpaceway.com-0001/privkey.pem",
-  cert: "/etc/letsencrypt/live/shiptunnel.zpaceway.com-0001/fullchain.pem",
+  key: fs.readFileSync(
+    "/etc/letsencrypt/live/shiptunnel.zpaceway.com-0001/privkey.pem"
+  ),
+  cert: fs.readFileSync(
+    "/etc/letsencrypt/live/shiptunnel.zpaceway.com-0001/fullchain.pem"
+  ),
 };
 
 const server = http.createServer();
