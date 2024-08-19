@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "rxjs": "^7.8.1",
     "tls": "^0.0.1",
     "ws": "^8.18.0",
     "zlib": "^1.0.5"

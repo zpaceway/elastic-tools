@@ -32,7 +32,6 @@ export const createClient = ({
     const client = await platformConnector.getClient();
     assert(client);
     const tunnelSocket = net.createConnection({
-      allowHalfOpen: false,
       keepAlive: true,
       host: tunnelHost,
       port: CLIENTS_TUNNEL_PORT,
@@ -82,7 +81,6 @@ export const createClient = ({
   };
 
   const clientServer = net.createServer({
-    allowHalfOpen: false,
     keepAlive: true,
   });
 

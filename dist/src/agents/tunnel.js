@@ -42,7 +42,13 @@ const createTunnel = ({ username, password, }) => {
             logger_1.default.log(`New proxy client ${client.username} connected from ${proxyCountryCode}`);
             availableProxiesByCountry[proxyCountryCode].push(proxySocket);
             logger_1.default.info(`Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`);
+            const createdAt = new Date();
+            const fiveMinutesAfterCreation = new Date(createdAt.getTime() + 1000 * 60 * 5);
             const interval = setInterval(() => {
+                if (fiveMinutesAfterCreation < new Date()) {
+                    proxySocket.end();
+                    return clearInterval(interval);
+                }
                 proxySocket.write(Buffer.from([]), (err) => {
                     if (err) {
                         proxySocket.end();
@@ -58,9 +64,9 @@ const createTunnel = ({ username, password, }) => {
         clientSocket.resume();
         clientSocket.once("data", (data) => {
             clientSocket.pause();
-            const key = data.subarray(0, constants_1.CLIENT_ID_MESSAGE_LENGTH).toString();
+            const key = data.subarray(0, constants_1.CLIENT_KEY_MESSAGE_LENGTH).toString();
             const countryCode = data
-                .subarray(constants_1.CLIENT_ID_MESSAGE_LENGTH, constants_1.LEFT_MESSAGE_PADDING)
+                .subarray(constants_1.CLIENT_KEY_MESSAGE_LENGTH, constants_1.LEFT_MESSAGE_PADDING)
                 .toString();
             onFirstDataChunk(key, countryCode, data.subarray(constants_1.LEFT_MESSAGE_PADDING));
         });

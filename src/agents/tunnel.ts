@@ -1,7 +1,7 @@
 import net from "net";
 import logger from "../core/logger";
 import {
-  CLIENT_ID_MESSAGE_LENGTH as CLIENT_KEY_MESSAGE_LENGTH,
+  CLIENT_KEY_MESSAGE_LENGTH,
   CLIENTS_TUNNEL_PORT,
   COUNTRY_CODES,
   CountryCode,
@@ -57,7 +57,16 @@ export const createTunnel = ({
         `Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`
       );
 
+      const createdAt = new Date();
+      const fiveMinutesAfterCreation = new Date(
+        createdAt.getTime() + 1000 * 60 * 5
+      );
+
       const interval = setInterval(() => {
+        if (fiveMinutesAfterCreation < new Date()) {
+          proxySocket.end();
+          return clearInterval(interval);
+        }
         proxySocket.write(Buffer.from([]), (err) => {
           if (err) {
             proxySocket.end();

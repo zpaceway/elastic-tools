@@ -38,7 +38,7 @@ export class PlatformConnector {
     this.password = password;
   }
 
-  getClient = async (key: string = "self") => {
+  async getClient(key: string = "self") {
     if (this.cache[key]) return this.cache[key];
 
     const client = mockedUsers.find((_user) => {
@@ -59,5 +59,5 @@ export class PlatformConnector {
     }
 
     return this.cache[key] || null;
-  };
+  }
 }

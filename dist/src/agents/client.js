@@ -27,7 +27,6 @@ const createClient = ({ username, password, tunnelHost, countryCode, }) => {
         const client = yield platformConnector.getClient();
         (0, assert_1.default)(client);
         const tunnelSocket = net_1.default.createConnection({
-            allowHalfOpen: false,
             keepAlive: true,
             host: tunnelHost,
             port: constants_1.CLIENTS_TUNNEL_PORT,
@@ -67,7 +66,6 @@ const createClient = ({ username, password, tunnelHost, countryCode, }) => {
         tunnelSocket.on("error", () => tunnelSocket.end());
     });
     const clientServer = net_1.default.createServer({
-        allowHalfOpen: false,
         keepAlive: true,
     });
     clientServer.on("connection", onConnect);

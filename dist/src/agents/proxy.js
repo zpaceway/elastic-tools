@@ -20,14 +20,15 @@ const constants_1 = require("../core/constants");
 const logger_1 = __importDefault(require("../core/logger"));
 const assert_1 = __importDefault(require("assert"));
 const http_1 = require("../core/http");
+const rxjs_1 = require("rxjs");
 class JumpersManager {
     constructor({ platformConnector, tunnelHost, minimumAvailability, }) {
-        this.jumpers = [];
+        this.jumpers$ = new rxjs_1.BehaviorSubject([]);
         this.platformConnector = platformConnector;
         this.tunnelHost = tunnelHost;
         this.minimumAvailability = minimumAvailability;
     }
-    initialize() {
+    start() {
         return __awaiter(this, void 0, void 0, function* () {
             const [client, countryCode] = yield Promise.all([
                 this.platformConnector.getClient(),
@@ -35,34 +36,40 @@ class JumpersManager {
             ]);
             (0, assert_1.default)(client);
             (0, assert_1.default)(countryCode);
-            return client;
+            this.jumpers$.subscribe((jumpers) => __awaiter(this, void 0, void 0, function* () {
+                if (jumpers.length >= this.minimumAvailability)
+                    return;
+                yield this.createJumper(client);
+            }));
+            yield this.createJumper(client);
         });
     }
-    createJumper() {
+    createJumper(client) {
         return __awaiter(this, void 0, void 0, function* () {
-            const client = yield this.initialize();
             const jumper = Symbol();
+            const createdAt = new Date();
+            const fiveMinutesAfterCreation = new Date(createdAt.getTime() + 1000 * 60 * 5);
             const tunnelSocket = net_1.default.createConnection({
                 allowHalfOpen: false,
                 keepAlive: true,
                 host: this.tunnelHost,
                 port: constants_1.PROXIES_TUNNEL_PORT,
             });
-            this.jumpers.push(jumper);
-            if (this.jumpers.length < this.minimumAvailability) {
-                this.createJumper();
-            }
-            const onUnavailable = () => {
-                const indexOf = this.jumpers.findIndex((_jumper) => _jumper === jumper);
-                if (indexOf < 0)
-                    return;
-                this.jumpers.splice(indexOf, 1);
-                if (this.jumpers.length < 10) {
-                    this.createJumper();
+            const interval = setInterval(() => {
+                if (fiveMinutesAfterCreation < new Date()) {
+                    tunnelSocket.end();
+                    return clearInterval(interval);
                 }
-            };
+                tunnelSocket.write(Buffer.from([]), (err) => {
+                    if (err) {
+                        tunnelSocket.end();
+                        clearInterval(interval);
+                    }
+                });
+            }, constants_1.KEEP_ALIVE_INTERVAL);
+            this.jumpers$.next([...this.jumpers$.value, jumper]);
             ["error", "data", "end", "close", "timeout"].forEach((event) => {
-                tunnelSocket.once(event, onUnavailable);
+                tunnelSocket.once(event, () => this.jumpers$.next(this.jumpers$.value.filter((_jumper) => _jumper !== jumper)));
             });
             tunnelSocket.write(client.key, (err) => err && tunnelSocket.end());
             tunnelSocket.on("error", () => tunnelSocket.end());
@@ -101,14 +108,6 @@ class JumpersManager {
                     logger_1.default.success(`---PROXY--- ${method} ${fullUrl}`);
                 });
             });
-            const interval = setInterval(() => {
-                tunnelSocket.write(Buffer.from([]), (err) => {
-                    if (err) {
-                        tunnelSocket.end();
-                        clearInterval(interval);
-                    }
-                });
-            }, constants_1.KEEP_ALIVE_INTERVAL);
         });
     }
 }
@@ -121,7 +120,7 @@ const createProxy = ({ username, password, tunnelHost, minimumAvailability, }) =
     });
     return {
         listen: () => {
-            jumpersManager.createJumper();
+            jumpersManager.start();
         },
     };
 };

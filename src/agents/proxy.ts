@@ -8,9 +8,10 @@ import { PROXIES_TUNNEL_PORT, KEEP_ALIVE_INTERVAL } from "../core/constants";
 import logger from "../core/logger";
 import assert from "assert";
 import { parseHttp } from "../core/http";
+import { BehaviorSubject } from "rxjs";
 
 class JumpersManager {
-  jumpers: Symbol[];
+  jumpers$: BehaviorSubject<Symbol[]>;
   tunnelHost: string;
   platformConnector: PlatformConnector;
   minimumAvailability: number;
@@ -24,13 +25,13 @@ class JumpersManager {
     tunnelHost: string;
     minimumAvailability: number;
   }) {
-    this.jumpers = [];
+    this.jumpers$ = new BehaviorSubject([] as Symbol[]);
     this.platformConnector = platformConnector;
     this.tunnelHost = tunnelHost;
     this.minimumAvailability = minimumAvailability;
   }
 
-  async initialize() {
+  async start() {
     const [client, countryCode] = await Promise.all([
       this.platformConnector.getClient(),
       getCountryCodeFromIpAddress(),
@@ -38,12 +39,20 @@ class JumpersManager {
     assert(client);
     assert(countryCode);
 
-    return client;
+    this.jumpers$.subscribe(async (jumpers) => {
+      if (jumpers.length >= this.minimumAvailability) return;
+      await this.createJumper(client);
+    });
+
+    await this.createJumper(client);
   }
 
-  async createJumper() {
-    const client = await this.initialize();
+  async createJumper(client: PlatformClient) {
     const jumper = Symbol();
+    const createdAt = new Date();
+    const fiveMinutesAfterCreation = new Date(
+      createdAt.getTime() + 1000 * 60 * 5
+    );
     const tunnelSocket = net.createConnection({
       allowHalfOpen: false,
       keepAlive: true,
@@ -51,22 +60,27 @@ class JumpersManager {
       port: PROXIES_TUNNEL_PORT,
     });
 
-    this.jumpers.push(jumper);
-    if (this.jumpers.length < this.minimumAvailability) {
-      this.createJumper();
-    }
-
-    const onUnavailable = () => {
-      const indexOf = this.jumpers.findIndex((_jumper) => _jumper === jumper);
-      if (indexOf < 0) return;
-      this.jumpers.splice(indexOf, 1);
-      if (this.jumpers.length < 10) {
-        this.createJumper();
+    const interval = setInterval(() => {
+      if (fiveMinutesAfterCreation < new Date()) {
+        tunnelSocket.end();
+        return clearInterval(interval);
       }
-    };
+      tunnelSocket.write(Buffer.from([]), (err) => {
+        if (err) {
+          tunnelSocket.end();
+          clearInterval(interval);
+        }
+      });
+    }, KEEP_ALIVE_INTERVAL);
+
+    this.jumpers$.next([...this.jumpers$.value, jumper]);
 
     ["error", "data", "end", "close", "timeout"].forEach((event) => {
-      tunnelSocket.once(event, onUnavailable);
+      tunnelSocket.once(event, () =>
+        this.jumpers$.next(
+          this.jumpers$.value.filter((_jumper) => _jumper !== jumper)
+        )
+      );
     });
 
     tunnelSocket.write(client.key, (err) => err && tunnelSocket.end());
@@ -123,15 +137,6 @@ class JumpersManager {
         }
       );
     });
-
-    const interval = setInterval(() => {
-      tunnelSocket.write(Buffer.from([]), (err) => {
-        if (err) {
-          tunnelSocket.end();
-          clearInterval(interval);
-        }
-      });
-    }, KEEP_ALIVE_INTERVAL);
   }
 }
 
@@ -155,7 +160,7 @@ export const createProxy = ({
 
   return {
     listen: () => {
-      jumpersManager.createJumper();
+      jumpersManager.start();
     },
   };
 };

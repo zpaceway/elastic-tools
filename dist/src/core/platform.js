@@ -36,7 +36,11 @@ const mockedUsers = [
 class PlatformConnector {
     constructor({ username, password }) {
         this.cache = {};
-        this.getClient = (...args_1) => __awaiter(this, [...args_1], void 0, function* (key = "self") {
+        this.username = username;
+        this.password = password;
+    }
+    getClient() {
+        return __awaiter(this, arguments, void 0, function* (key = "self") {
             if (this.cache[key])
                 return this.cache[key];
             const client = mockedUsers.find((_user) => {
@@ -53,8 +57,6 @@ class PlatformConnector {
             }
             return this.cache[key] || null;
         });
-        this.username = username;
-        this.password = password;
     }
 }
 exports.PlatformConnector = PlatformConnector;

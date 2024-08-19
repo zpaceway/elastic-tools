@@ -11,5 +11,5 @@ export declare class PlatformConnector {
         username: string;
         password: string;
     });
-    getClient: (key?: string) => Promise<platformClient | null>;
+    getClient(key?: string): Promise<platformClient | null>;
 }
