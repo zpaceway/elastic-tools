@@ -4,10 +4,10 @@ import WebSocket from "ws";
 import http from "http";
 import path from "path";
 
-// const options = {
-//   key: fs.readFileSync(path.join(__dirname, "server-key.pem")),
-//   cert: fs.readFileSync(path.join(__dirname, "fullchain.pem")),
-// };
+const options = {
+  key: "/etc/letsencrypt/live/shiptunnel.zpaceway.com-0001/privkey.pem",
+  cert: "/etc/letsencrypt/live/shiptunnel.zpaceway.com-0001/fullchain.pem",
+};
 
 const server = http.createServer();
 
@@ -33,7 +33,7 @@ server.on("upgrade", (request, socket, head) => {
   });
 });
 
-const tlsServer = tls.createServer({}, (socket) => {
+const tlsServer = tls.createServer(options, (socket) => {
   console.log("Client connected:", socket.remoteAddress);
 
   server.emit("connection", socket);
