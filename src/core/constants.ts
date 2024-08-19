@@ -259,7 +259,7 @@ export type CountryCode = (typeof COUNTRY_CODES)[number];
 
 export const MAX_TCP_CHUNK_SIZE = 1400;
 export const TCP_CHUNK_SIZE_MESSAGE_LENGTH = 5;
-export const CLIENT_ID_MESSAGE_LENGTH = 36;
+export const CLIENT_ID_MESSAGE_LENGTH = 32;
 export const COUNTRY_CODE_MESSAGE_LENGTH = 2;
 export const LEFT_MESSAGE_PADDING =
   CLIENT_ID_MESSAGE_LENGTH + COUNTRY_CODE_MESSAGE_LENGTH;

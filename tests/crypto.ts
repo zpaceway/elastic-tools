@@ -5,7 +5,7 @@ import {
   decompressBuffer,
   decryptTcpChunk,
   encryptTcpChunk,
-} from "../src/crypto";
+} from "../src/core/crypto";
 
 const key = crypto.createHash("sha256").update("justakey").digest();
 const message = Buffer.from("Hello World");

@@ -14,10 +14,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createJumpers = void 0;
 const net_1 = __importDefault(require("net"));
-const location_1 = require("../../location");
-const constants_1 = require("../../constants");
-const logger_1 = __importDefault(require("../../logger"));
-const createJumpers = (_a) => __awaiter(void 0, [_a], void 0, function* ({ tunnelHost, minimumAvailability, }) {
+const location_1 = require("../../core/location");
+const constants_1 = require("../../core/constants");
+const logger_1 = __importDefault(require("../../core/logger"));
+const assert_1 = __importDefault(require("assert"));
+const createJumpers = (_a) => __awaiter(void 0, [_a], void 0, function* ({ platformConnector, tunnelHost, minimumAvailability, }) {
+    const client = yield platformConnector.getClient();
+    (0, assert_1.default)(client);
     const countryCode = yield (0, location_1.getCountryCodeFromIpAddress)();
     if (!countryCode)
         return logger_1.default.error("Unsupported Country Code");
@@ -49,6 +52,7 @@ const createJumpers = (_a) => __awaiter(void 0, [_a], void 0, function* ({ tunne
                 createJumper();
             }
         };
+        tunnelSocket.write(client.key);
         ["data", "end", "close", "timeout"].map((event) => {
             tunnelSocket.on(event, onUnavailable);
             proxySocket.on(event, onUnavailable);

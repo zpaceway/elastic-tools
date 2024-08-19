@@ -16,33 +16,42 @@ const mockedUsers = [
         username: "zpaceway",
         level: "admin",
         password: "123456",
-        encryptionKey: "06d4ea86bcd543ddba74315c939ae999",
+        key: "06d4ea86bcd543ddba74315c939ae999",
     },
     {
-        id: "2aaa619e-c63b-432d-9bb6-d86af0bb7b40",
+        id: "d93360e0-1175-48ee-845b-a1717200ad11",
         username: "alexandro",
         level: "client",
         password: "123456",
-        encryptionKey: "06d4ea86bcd543ddba74315c939ae999",
+        key: "58f02cc073ce46c39230e224c4f23e8f",
+    },
+    {
+        id: "ca69b77e-1100-4e72-a49c-250ada1b989b",
+        username: "guido",
+        level: "client",
+        password: "123456",
+        key: "8b238ee5e79549748eed7ab3a5ec14a3",
     },
 ];
 class PlatformConnector {
     constructor({ username, password }) {
-        this.keys = {};
-        this.getClient = (...args_1) => __awaiter(this, [...args_1], void 0, function* (clientId = "self") {
-            if (this.keys[clientId])
-                return this.keys[clientId];
-            const client = mockedUsers.find((_user) => _user.password === this.password && _user.username === this.username);
+        this.cache = {};
+        this.getClient = (...args_1) => __awaiter(this, [...args_1], void 0, function* (key = "self") {
+            if (this.cache[key])
+                return this.cache[key];
+            const client = mockedUsers.find((_user) => {
+                if (key === "self")
+                    return (_user.password === this.password && _user.username === this.username);
+                return _user.key === key;
+            });
             if (client) {
-                this.keys[clientId] = {
+                this.cache[key] = {
                     id: client.id,
                     username: client.username,
-                    encryptionKey: Buffer.from(client.encryptionKey),
+                    key: Buffer.from(client.key),
                 };
-                if (client.level === "admin") {
-                }
             }
-            return this.keys[clientId] || null;
+            return this.cache[key] || null;
         });
         this.username = username;
         this.password = password;

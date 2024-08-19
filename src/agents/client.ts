@@ -3,15 +3,16 @@ import {
   CLIENT_SERVER_PORT,
   CLIENTS_TUNNEL_PORT,
   CountryCode,
-} from "../constants";
+} from "../core/constants";
 import {
   encryptTcpChunk,
   handleIncommingEncryptedTcpChunk,
   inTcpChunks,
-} from "../crypto";
-import logger from "../logger";
-import { PlatformConnector } from "../platform";
+} from "../core/crypto";
+import logger from "../core/logger";
+import { PlatformConnector } from "../core/platform";
 import assert from "assert";
+import { parseHttp } from "../core/http";
 
 export const createClient = ({
   username,
@@ -43,20 +44,25 @@ export const createClient = ({
     };
 
     tunnelSocket.on("connect", () => {
-      tunnelSocket.write(`${client.id}${countryCode}`);
-      clientSocket.on("data", (data) => {
-        const encrypted = encryptTcpChunk({
-          buffer: data,
-          key: client.encryptionKey,
+      tunnelSocket.write(`${client.key}${countryCode}`);
+      clientSocket.once("data", (data) => {
+        const { method, fullUrl } = parseHttp(data);
+        logger.info(`---CLIENT--- ${method} ${fullUrl}`);
+        clientSocket.on("data", (data) => {
+          const encrypted = encryptTcpChunk({
+            buffer: data,
+            key: client.key,
+          });
+          inTcpChunks(encrypted).forEach((chunk) => tunnelSocket.write(chunk));
         });
-        inTcpChunks(encrypted).forEach((chunk) => tunnelSocket.write(chunk));
+        clientSocket.emit("data", data);
       });
 
       tunnelSocket.on("data", (data) => {
         handleIncommingEncryptedTcpChunk({
           sweeper,
           data,
-          key: client.encryptionKey,
+          key: client.key,
           onDecrypted: (decrypted) => {
             clientSocket.write(decrypted, (err) => {
               if (!err) return;

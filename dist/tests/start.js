@@ -7,6 +7,8 @@ const tunnel = (0, src_1.createTunnel)({
 });
 tunnel.listen();
 const proxy = (0, src_1.createProxy)({
+    username: "guido",
+    password: "123456",
     tunnelHost: "localhost",
     minimumAvailability: 10,
 });

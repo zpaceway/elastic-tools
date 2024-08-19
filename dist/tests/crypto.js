@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const crypto_1 = __importDefault(require("crypto"));
-const crypto_2 = require("../src/crypto");
+const crypto_2 = require("../src/core/crypto");
 const key = crypto_1.default.createHash("sha256").update("justakey").digest();
 const message = Buffer.from("Hello World");
 const compressed = (0, crypto_2.compressBuffer)(message);

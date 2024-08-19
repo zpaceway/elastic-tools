@@ -1,15 +1,22 @@
 import net from "net";
-import { getCountryCodeFromIpAddress } from "../../location";
-import { PROXY_SERVER_PORT, PROXIES_TUNNEL_PORT } from "../../constants";
-import logger from "../../logger";
+import { getCountryCodeFromIpAddress } from "../../core/location";
+import { PROXY_SERVER_PORT, PROXIES_TUNNEL_PORT } from "../../core/constants";
+import logger from "../../core/logger";
+import { PlatformConnector } from "../../core/platform";
+import assert from "assert";
 
 export const createJumpers = async ({
+  platformConnector,
   tunnelHost,
   minimumAvailability,
 }: {
+  platformConnector: PlatformConnector;
   tunnelHost: string;
   minimumAvailability: number;
 }) => {
+  const client = await platformConnector.getClient();
+  assert(client);
+
   const countryCode = await getCountryCodeFromIpAddress();
   if (!countryCode) return logger.error("Unsupported Country Code");
 
@@ -46,6 +53,8 @@ export const createJumpers = async ({
         createJumper();
       }
     };
+
+    tunnelSocket.write(client.key);
 
     ["data", "end", "close", "timeout"].map((event) => {
       tunnelSocket.on(event, onUnavailable);

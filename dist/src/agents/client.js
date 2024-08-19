@@ -14,11 +14,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createClient = void 0;
 const net_1 = __importDefault(require("net"));
-const constants_1 = require("../constants");
-const crypto_1 = require("../crypto");
-const logger_1 = __importDefault(require("../logger"));
-const platform_1 = require("../platform");
+const constants_1 = require("../core/constants");
+const crypto_1 = require("../core/crypto");
+const logger_1 = __importDefault(require("../core/logger"));
+const platform_1 = require("../core/platform");
 const assert_1 = __importDefault(require("assert"));
+const http_1 = require("../core/http");
 const createClient = ({ username, password, tunnelHost, countryCode, }) => {
     logger_1.default.log(`Client Server will proxy encrypted packets to ${tunnelHost}:`);
     const platformConnector = new platform_1.PlatformConnector({ username, password });
@@ -36,19 +37,24 @@ const createClient = ({ username, password, tunnelHost, countryCode, }) => {
             size: -1,
         };
         tunnelSocket.on("connect", () => {
-            tunnelSocket.write(`${client.id}${countryCode}`);
-            clientSocket.on("data", (data) => {
-                const encrypted = (0, crypto_1.encryptTcpChunk)({
-                    buffer: data,
-                    key: client.encryptionKey,
+            tunnelSocket.write(`${client.key}${countryCode}`);
+            clientSocket.once("data", (data) => {
+                const { method, fullUrl } = (0, http_1.parseHttp)(data);
+                logger_1.default.info(`---CLIENT--- ${method} ${fullUrl}`);
+                clientSocket.on("data", (data) => {
+                    const encrypted = (0, crypto_1.encryptTcpChunk)({
+                        buffer: data,
+                        key: client.key,
+                    });
+                    (0, crypto_1.inTcpChunks)(encrypted).forEach((chunk) => tunnelSocket.write(chunk));
                 });
-                (0, crypto_1.inTcpChunks)(encrypted).forEach((chunk) => tunnelSocket.write(chunk));
+                clientSocket.emit("data", data);
             });
             tunnelSocket.on("data", (data) => {
                 (0, crypto_1.handleIncommingEncryptedTcpChunk)({
                     sweeper,
                     data,
-                    key: client.encryptionKey,
+                    key: client.key,
                     onDecrypted: (decrypted) => {
                         clientSocket.write(decrypted, (err) => {
                             if (!err)

@@ -1,20 +1,21 @@
 import net from "net";
-import logger from "../logger";
+import logger from "../core/logger";
 import {
-  CLIENT_ID_MESSAGE_LENGTH,
+  CLIENT_ID_MESSAGE_LENGTH as CLIENT_KEY_MESSAGE_LENGTH,
   CLIENTS_TUNNEL_PORT,
   COUNTRY_CODES,
   CountryCode,
   LEFT_MESSAGE_PADDING,
   PROXIES_TUNNEL_PORT,
-} from "../constants";
+} from "../core/constants";
 import {
   encryptTcpChunk,
   handleIncommingEncryptedTcpChunk,
   inTcpChunks,
-} from "../crypto";
-import { getCountryCodeFromIpAddress } from "../location";
-import { PlatformConnector } from "../platform";
+} from "../core/crypto";
+import { getCountryCodeFromIpAddress } from "../core/location";
+import { PlatformConnector } from "../core/platform";
+import assert from "assert";
 
 export const createTunnel = ({
   username,
@@ -32,26 +33,33 @@ export const createTunnel = ({
   const platformConnector = new PlatformConnector({ username, password });
 
   const onProxyConnection = async (proxySocket: net.Socket) => {
-    proxySocket.pause();
-    const proxyCountryCode = await getCountryCodeFromIpAddress(
-      proxySocket.remoteAddress
-    );
-    proxySocket.resume();
-
-    if (!proxyCountryCode) {
-      proxySocket.write(
-        "HTTP/1.1 500 Internal Server Error\r\n" +
-          "Content-Type: text/plain\r\n" +
-          "\r\n"
+    proxySocket.once("data", async (data) => {
+      proxySocket.pause();
+      const key = data.toString();
+      const client = await platformConnector.getClient(key);
+      assert(client);
+      const proxyCountryCode = await getCountryCodeFromIpAddress(
+        proxySocket.remoteAddress
       );
-      return proxySocket.end(`Error: incorrect country code`);
-    }
+      proxySocket.resume();
 
-    logger.log("New proxy connected from", proxyCountryCode);
-    availableProxiesByCountry[proxyCountryCode].push(proxySocket);
-    logger.info(
-      `Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`
-    );
+      if (!proxyCountryCode) {
+        proxySocket.write(
+          "HTTP/1.1 500 Internal Server Error\r\n" +
+            "Content-Type: text/plain\r\n" +
+            "\r\n"
+        );
+        return proxySocket.end(`Error: incorrect country code`);
+      }
+
+      logger.log(
+        `New proxy client ${client.username} connected from ${proxyCountryCode}`
+      );
+      availableProxiesByCountry[proxyCountryCode].push(proxySocket);
+      logger.info(
+        `Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`
+      );
+    });
   };
 
   const onClientConnection = async (clientSocket: net.Socket) => {
@@ -59,31 +67,25 @@ export const createTunnel = ({
     const clientCountryCode = await getCountryCodeFromIpAddress(
       clientSocket.remoteAddress
     );
-    logger.log(`New client connected from ${clientCountryCode}`);
 
     clientSocket.resume();
 
     clientSocket.once("data", (data) => {
       clientSocket.pause();
-      const clientId = data.subarray(0, CLIENT_ID_MESSAGE_LENGTH).toString();
+      const key = data.subarray(0, CLIENT_KEY_MESSAGE_LENGTH).toString();
       const countryCode = data
-        .subarray(CLIENT_ID_MESSAGE_LENGTH, LEFT_MESSAGE_PADDING)
+        .subarray(CLIENT_KEY_MESSAGE_LENGTH, LEFT_MESSAGE_PADDING)
         .toString() as CountryCode;
 
-      onFirstDataChunk(
-        clientId,
-        countryCode,
-        data.subarray(LEFT_MESSAGE_PADDING)
-      );
+      onFirstDataChunk(key, countryCode, data.subarray(LEFT_MESSAGE_PADDING));
     });
 
     const onFirstDataChunk = async (
-      clientId: string,
+      key: string,
       countryCode: CountryCode,
       chunk: Buffer
     ) => {
-      logger.log(`New client ${clientId} connected to ${countryCode}`);
-      const client = await platformConnector.getClient(clientId);
+      const client = await platformConnector.getClient(key);
       const proxySocket = availableProxiesByCountry[countryCode].pop();
 
       if (!proxySocket || !client) {
@@ -95,6 +97,9 @@ export const createTunnel = ({
         return clientSocket.end(`Error: unavailable`);
       }
 
+      logger.log(
+        `New client ${client.username} connected from ${clientCountryCode} to ${countryCode}`
+      );
       logger.log(
         `Available proxies ${availableProxiesByCountry[countryCode].length}`
       );
@@ -108,7 +113,7 @@ export const createTunnel = ({
         handleIncommingEncryptedTcpChunk({
           sweeper,
           data,
-          key: client.encryptionKey,
+          key: client.key,
           onDecrypted: (decrypted) => {
             proxySocket.write(decrypted, (err) => {
               if (!err) return;
@@ -123,7 +128,7 @@ export const createTunnel = ({
       proxySocket.on("data", (data) => {
         const encrypted = encryptTcpChunk({
           buffer: data,
-          key: client.encryptionKey,
+          key: client.key,
         });
         inTcpChunks(encrypted).forEach((chunk) => clientSocket.write(chunk));
       });

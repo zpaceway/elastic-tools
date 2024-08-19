@@ -1,29 +1,23 @@
 import net from "net";
-import logger from "../../logger";
+import logger from "../../core/logger";
+import { parseHttp } from "../../core/http";
 
 export const createServer = () => {
   const server = net.createServer(
     { allowHalfOpen: true, keepAlive: true },
     (socket) => {
       socket.once("data", (data) => {
-        const requestData = data.toString();
-        const [requestLine] = requestData.split("\r\n");
+        const { method, fullUrl } = parseHttp(data);
 
-        if (!requestLine) {
-          logger.error(`---HTTP--- Invalid HTTP Request`);
+        if (!method || !fullUrl) {
+          logger.error(`---PROXY--- Invalid HTTP Request`);
           return socket.end();
         }
 
         const targetSocket = new net.Socket();
-        const [method, fullUrl] = requestLine.split(" ");
-
-        if (!fullUrl) {
-          logger.error(`---HTTP--- Invalid HTTP Request`);
-          return socket.end();
-        }
 
         targetSocket.on("error", (err) => {
-          logger.error(`---HTTP--- ${method} ${fullUrl} - ${err.message}`);
+          logger.error(`---PROXY--- ${method} ${fullUrl} - ${err.message}`);
           targetSocket.end();
           socket.end();
         });
@@ -33,7 +27,7 @@ export const createServer = () => {
           socket.end();
         });
 
-        logger.info(`---HTTP--- ${method} ${fullUrl}`);
+        logger.info(`---PROXY--- ${method} ${fullUrl}`);
 
         if (method === "CONNECT") {
           const [hostname, port] = fullUrl.split(":");
@@ -44,7 +38,7 @@ export const createServer = () => {
               socket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
               targetSocket.pipe(socket, { end: true });
               socket.pipe(targetSocket, { end: true });
-              logger.success(`---HTTP--- ${method} ${fullUrl}`);
+              logger.success(`---PROXY--- ${method} ${fullUrl}`);
             }
           );
         }
@@ -57,7 +51,7 @@ export const createServer = () => {
             targetSocket.pipe(socket, { end: true });
             targetSocket.write(data);
             socket.pipe(targetSocket, { end: true });
-            logger.success(`---HTTP--- ${method} ${fullUrl}`);
+            logger.success(`---PROXY--- ${method} ${fullUrl}`);
           }
         );
       });
