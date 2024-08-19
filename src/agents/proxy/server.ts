@@ -43,8 +43,8 @@ export const createServer = () => {
                   if (err) return socket.end();
                 }
               );
-              targetSocket.pipe(socket, { end: true });
-              socket.pipe(targetSocket, { end: true });
+              targetSocket.pipe(socket);
+              socket.pipe(targetSocket);
               logger.success(`---PROXY--- ${method} ${fullUrl}`);
             }
           );
@@ -58,8 +58,8 @@ export const createServer = () => {
             targetSocket.write(data, (err) => {
               if (err) return socket.end();
             });
-            targetSocket.pipe(socket, { end: true });
-            socket.pipe(targetSocket, { end: true });
+            targetSocket.pipe(socket);
+            socket.pipe(targetSocket);
             logger.success(`---PROXY--- ${method} ${fullUrl}`);
           }
         );
