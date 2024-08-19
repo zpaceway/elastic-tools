@@ -1,4 +1,3 @@
-export const PROXY_SERVER_PORT = 53503;
 export const CLIENT_SERVER_PORT = 53504;
 export const CLIENTS_TUNNEL_PORT = 53505;
 export const PROXIES_TUNNEL_PORT = 53506;
