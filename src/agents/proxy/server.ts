@@ -19,11 +19,9 @@ export const createServer = () => {
         targetSocket.on("error", (err) => {
           logger.error(`---PROXY--- ${method} ${fullUrl} - ${err.message}`);
           targetSocket.end();
-          socket.end();
         });
         socket.on("error", (err) => {
           logger.error(`---PROXY--- ${method} ${fullUrl} - ${err.message}`);
-          targetSocket.end();
           socket.end();
         });
         socket.on("end", () => targetSocket.end());
