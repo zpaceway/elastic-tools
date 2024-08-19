@@ -31,25 +31,23 @@ const createServer = () => {
                 targetSocket.end();
                 socket.end();
             });
+            logger_1.default.info(`---HTTP--- ${method} ${fullUrl}`);
             if (method === "CONNECT") {
                 const [hostname, port] = fullUrl.split(":");
-                logger_1.default.info(`---HTTP--- ${method} ${fullUrl}`);
-                targetSocket.connect({ host: hostname, port: parseInt(port || "443") }, () => {
+                return targetSocket.connect({ host: hostname, port: parseInt(port || "443") }, () => {
                     socket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
                     targetSocket.pipe(socket, { end: true });
                     socket.pipe(targetSocket, { end: true });
                     logger_1.default.success(`---HTTP--- ${method} ${fullUrl}`);
                 });
             }
-            else {
-                const url = new URL(fullUrl);
-                targetSocket.connect({ host: url.hostname, port: parseInt(url.port || "80") }, () => {
-                    targetSocket.pipe(socket, { end: true });
-                    targetSocket.write(data);
-                    socket.pipe(targetSocket, { end: true });
-                    logger_1.default.success(`---HTTP--- ${method} ${fullUrl}`);
-                });
-            }
+            const url = new URL(fullUrl);
+            targetSocket.connect({ host: url.hostname, port: parseInt(url.port || "80") }, () => {
+                targetSocket.pipe(socket, { end: true });
+                targetSocket.write(data);
+                socket.pipe(targetSocket, { end: true });
+                logger_1.default.success(`---HTTP--- ${method} ${fullUrl}`);
+            });
         });
     });
     return server;
