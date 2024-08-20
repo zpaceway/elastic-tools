@@ -44,13 +44,11 @@ class JumpersManager {
       if (jumpers.length >= this.minimumAvailability) return;
       await this.createJumper(client);
     });
-
-    await this.createJumper(client);
   }
 
   async createJumper(client: PlatformClient) {
     const jumper = Symbol();
-    const fiveMinutesAfterCreation = getFutureDate(1000 * 60 * 5);
+    this.jumpers$.next([...this.jumpers$.value, jumper]);
     const tunnelSocket = net.createConnection({
       allowHalfOpen: false,
       keepAlive: true,
@@ -58,18 +56,17 @@ class JumpersManager {
       port: PROXIES_TUNNEL_PORT,
     });
 
+    const fiveMinutesAfterCreation = getFutureDate(1000 * 60 * 5);
     const interval = setInterval(() => {
-      if (fiveMinutesAfterCreation < new Date()) {
-        tunnelSocket.end();
-        return clearInterval(interval);
-      }
+      tunnelSocket.write("", (err) => err && tunnelSocket.end());
+      fiveMinutesAfterCreation < new Date() && tunnelSocket.end();
+      (!tunnelSocket.writable || !tunnelSocket.readable) && tunnelSocket.end();
     }, KEEP_ALIVE_INTERVAL);
-
-    this.jumpers$.next([...this.jumpers$.value, jumper]);
+    tunnelSocket.once("end", () => clearInterval(interval));
+    tunnelSocket.once("data", () => clearInterval(interval));
 
     ["error", "data", "end", "close", "timeout"].forEach((event) => {
       tunnelSocket.once(event, () => {
-        clearInterval(interval);
         this.jumpers$.next(
           this.jumpers$.value.filter((_jumper) => _jumper !== jumper)
         );

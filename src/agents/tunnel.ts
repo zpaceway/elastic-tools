@@ -5,6 +5,7 @@ import {
   CLIENTS_TUNNEL_PORT,
   COUNTRY_CODES,
   CountryCode,
+  KEEP_ALIVE_INTERVAL,
   LEFT_MESSAGE_PADDING,
   PROXIES_TUNNEL_PORT,
 } from "../core/constants";
@@ -16,6 +17,7 @@ import {
 import { getCountryCodeFromIpAddress } from "../core/location";
 import { PlatformConnector } from "../core/platform";
 import assert from "assert";
+import { getFutureDate } from "../core/datetime";
 
 export const createTunnel = ({
   username,
@@ -55,6 +57,15 @@ export const createTunnel = ({
       logger.info(
         `Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`
       );
+
+      const fiveMinutesAfterCreation = getFutureDate(1000 * 60 * 5);
+      const interval = setInterval(() => {
+        proxySocket.write("", (err) => err && proxySocket.end());
+        fiveMinutesAfterCreation < new Date() && proxySocket.end();
+        (!proxySocket.writable || !proxySocket.readable) && proxySocket.end();
+      }, KEEP_ALIVE_INTERVAL);
+      proxySocket.once("end", () => clearInterval(interval));
+      proxySocket.once("data", () => clearInterval(interval));
 
       ["error", "data", "end", "close", "timeout"].forEach((event) => {
         proxySocket.once(event, () => {
