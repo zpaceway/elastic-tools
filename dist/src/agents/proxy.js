@@ -42,29 +42,28 @@ class JumpersManager {
                     return;
                 yield this.createJumper(client);
             }));
-            yield this.createJumper(client);
         });
     }
     createJumper(client) {
         return __awaiter(this, void 0, void 0, function* () {
             const jumper = Symbol();
-            const fiveMinutesAfterCreation = (0, datetime_1.getFutureDate)(1000 * 60 * 5);
+            this.jumpers$.next([...this.jumpers$.value, jumper]);
             const tunnelSocket = net_1.default.createConnection({
                 allowHalfOpen: false,
                 keepAlive: true,
                 host: this.tunnelHost,
                 port: constants_1.PROXIES_TUNNEL_PORT,
             });
+            const fiveMinutesAfterCreation = (0, datetime_1.getFutureDate)(1000 * 60 * 5);
             const interval = setInterval(() => {
-                if (fiveMinutesAfterCreation < new Date()) {
-                    tunnelSocket.end();
-                    return clearInterval(interval);
-                }
+                tunnelSocket.write("", (err) => err && tunnelSocket.end());
+                fiveMinutesAfterCreation < new Date() && tunnelSocket.end();
+                (!tunnelSocket.writable || !tunnelSocket.readable) && tunnelSocket.end();
             }, constants_1.KEEP_ALIVE_INTERVAL);
-            this.jumpers$.next([...this.jumpers$.value, jumper]);
+            tunnelSocket.once("end", () => clearInterval(interval));
+            tunnelSocket.once("data", () => clearInterval(interval));
             ["error", "data", "end", "close", "timeout"].forEach((event) => {
                 tunnelSocket.once(event, () => {
-                    clearInterval(interval);
                     this.jumpers$.next(this.jumpers$.value.filter((_jumper) => _jumper !== jumper));
                 });
             });

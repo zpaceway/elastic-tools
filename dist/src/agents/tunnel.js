@@ -20,6 +20,7 @@ const crypto_1 = require("../core/crypto");
 const location_1 = require("../core/location");
 const platform_1 = require("../core/platform");
 const assert_1 = __importDefault(require("assert"));
+const datetime_1 = require("../core/datetime");
 const createTunnel = ({ username, password, }) => {
     logger_1.default.log(`Tunnel server created with username: ${username}`);
     const availableProxiesByCountry = constants_1.COUNTRY_CODES.reduce((acc, countryCode) => {
@@ -42,6 +43,14 @@ const createTunnel = ({ username, password, }) => {
             logger_1.default.log(`New proxy client ${client.username} connected from ${proxyCountryCode}`);
             availableProxiesByCountry[proxyCountryCode].push(proxySocket);
             logger_1.default.info(`Available proxies on ${proxyCountryCode}: ${availableProxiesByCountry[proxyCountryCode].length}`);
+            const fiveMinutesAfterCreation = (0, datetime_1.getFutureDate)(1000 * 60 * 5);
+            const interval = setInterval(() => {
+                proxySocket.write("", (err) => err && proxySocket.end());
+                fiveMinutesAfterCreation < new Date() && proxySocket.end();
+                (!proxySocket.writable || !proxySocket.readable) && proxySocket.end();
+            }, constants_1.KEEP_ALIVE_INTERVAL);
+            proxySocket.once("end", () => clearInterval(interval));
+            proxySocket.once("data", () => clearInterval(interval));
             ["error", "data", "end", "close", "timeout"].forEach((event) => {
                 proxySocket.once(event, () => {
                     availableProxiesByCountry[proxyCountryCode] =

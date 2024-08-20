@@ -3,13 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const fs_1 = __importDefault(require("fs"));
 const tls_1 = __importDefault(require("tls"));
 const ws_1 = __importDefault(require("ws"));
 const http_1 = __importDefault(require("http"));
 const options = {
-    key: fs_1.default.readFileSync("/etc/letsencrypt/live/shiptunnel.zpaceway.com-0001/privkey.pem"),
-    cert: fs_1.default.readFileSync("/etc/letsencrypt/live/shiptunnel.zpaceway.com-0001/fullchain.pem"),
+// key: fs.readFileSync(),
+// cert: fs.readFileSync(),
 };
 const server = http_1.default.createServer();
 const wss = new ws_1.default.Server({ noServer: true });
